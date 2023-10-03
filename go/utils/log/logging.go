@@ -2,11 +2,12 @@ package logging
 
 import (
 	"fmt"
-	c "github/mhaqqiw/sdk/go/constant"
-	"github/mhaqqiw/sdk/go/entity"
 	"log"
 	"runtime"
 	"strings"
+
+	c "github.com/mhaqqiw/sdk/go/constant"
+	"github.com/mhaqqiw/sdk/go/entity"
 )
 
 func Trace() string {
