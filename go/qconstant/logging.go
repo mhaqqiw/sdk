@@ -1,4 +1,4 @@
-package constant
+package qconstant
 
 const ERROR = "ERROR"
 const INFO = "INFO"

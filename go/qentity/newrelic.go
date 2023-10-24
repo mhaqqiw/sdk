@@ -1,4 +1,4 @@
-package entity
+package qentity
 
 type NRConfig struct {
 	IsEnabled bool

@@ -1,4 +1,4 @@
-package logging
+package qlog
 
 import (
 	"fmt"
@@ -6,8 +6,8 @@ import (
 	"runtime"
 	"strings"
 
-	c "github.com/mhaqqiw/sdk/go/constant"
-	"github.com/mhaqqiw/sdk/go/entity"
+	"github.com/mhaqqiw/sdk/go/qconstant"
+	"github.com/mhaqqiw/sdk/go/qentity"
 )
 
 func Trace() string {
@@ -23,9 +23,9 @@ func Trace() string {
 	return fmt.Sprintf("%s:%d - %s", s, line, f.Name())
 }
 
-func LogPrint(typeLog string, identifier string, trace string, err string, monitoring entity.Monitoring) {
+func LogPrint(typeLog string, identifier string, trace string, err string, monitoring qentity.Monitoring) {
 	if typeLog == "" {
-		typeLog = c.ERROR
+		typeLog = qconstant.ERROR
 	}
 	log.Printf("[%s][%s] - %s \n\t [%s] %s\n", typeLog, identifier, trace, typeLog, strings.TrimSpace(err))
 	if monitoring.NRConfig.IsEnabled {

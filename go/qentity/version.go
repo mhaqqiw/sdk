@@ -1,4 +1,4 @@
-package entity
+package qentity
 
 type Metadata struct {
 	Version       string

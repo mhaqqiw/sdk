@@ -1,4 +1,4 @@
-package entity
+package qentity
 
 type QHardwareInterface struct {
 	Index           int        `json:"index"`

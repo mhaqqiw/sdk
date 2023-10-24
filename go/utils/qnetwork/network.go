@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mhaqqiw/sdk/go/entity"
+	"github.com/mhaqqiw/sdk/go/qentity"
 )
 
 var descMap = map[string]map[string]interface{}{
@@ -67,24 +67,24 @@ func splitAlphaNumeric(input string) (string, int, error) {
 	return "", 0, errors.New("invalid format")
 }
 
-func GetNetworkInfo() ([]entity.QHardwareInterface, error) {
+func GetNetworkInfo() ([]qentity.QHardwareInterface, error) {
 	ifas, err := net.Interfaces()
 	if err != nil {
 		return nil, err
 	}
-	var as []entity.QHardwareInterface
+	var as []qentity.QHardwareInterface
 	for _, ifa := range ifas {
 		part1, part2, err := splitAlphaNumeric(ifa.Name)
 		if err != nil {
 			return nil, err
 		}
-		var addrs []entity.QAddress
+		var addrs []qentity.QAddress
 		address, err := ifa.Addrs()
 		if err != nil {
 			return nil, err
 		}
 		for _, a := range address {
-			addr := entity.QAddress{
+			addr := qentity.QAddress{
 				IP:   a.(*net.IPNet).IP.String(),
 				Mask: a.(*net.IPNet).Mask.String(),
 			}
@@ -93,7 +93,7 @@ func GetNetworkInfo() ([]entity.QHardwareInterface, error) {
 			}
 			addrs = append(addrs, addr)
 		}
-		as = append(as, entity.QHardwareInterface{
+		as = append(as, qentity.QHardwareInterface{
 			Addres:          addrs,
 			Code:            part1,
 			Desc:            descMap[part1]["desc"].(string),
