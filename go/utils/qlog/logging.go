@@ -9,6 +9,7 @@ import (
 
 	"github.com/mhaqqiw/sdk/go/qconstant"
 	"github.com/mhaqqiw/sdk/go/qentity"
+	"github.com/newrelic/go-agent/v3/newrelic"
 )
 
 func getRelativePath(absolutePath string) string {
@@ -63,4 +64,16 @@ func LogPrint(typeLog string, identifier string, trace string, err string, monit
 	if monitoring.NRConfig.IsEnabled {
 		//TODO: send NR metrics
 	}
+}
+
+func InitNRConfig(name string, key string, isForward bool) (*newrelic.Application, error) {
+	app, err := newrelic.NewApplication(
+		newrelic.ConfigAppName(name),
+		newrelic.ConfigLicense(key),
+		newrelic.ConfigAppLogForwardingEnabled(isForward),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return app, nil
 }
