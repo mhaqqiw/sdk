@@ -41,6 +41,10 @@ func Set(conn *redis.Client, key string, data any, timeout int64) error {
 func Get(conn *redis.Client, key string) (string, error) {
 	val, err := conn.Get(key).Result()
 	if err != nil {
+		//if key not found return empty string
+		if err == redis.Nil {
+			return "", nil
+		}
 		return val, errors.New("failed to get data")
 	}
 	return val, nil
