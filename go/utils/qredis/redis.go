@@ -38,16 +38,22 @@ func Set(conn *redis.Client, key string, data any, timeout int64) error {
 	return nil
 }
 
-func Get(conn *redis.Client, key string) (string, error) {
+func Get(conn *redis.Client, key string) (string, time.Duration, error) {
 	val, err := conn.Get(key).Result()
 	if err != nil {
 		//if key not found return empty string
 		if err == redis.Nil {
-			return "", nil
+			return "", 0, nil
 		}
-		return val, errors.New("failed to get data")
+		return val, 0, errors.New("failed to get data")
 	}
-	return val, nil
+	ttlResult := conn.TTL(key)
+	if ttlResult.Err() != nil {
+		fmt.Println("Error:", ttlResult.Err())
+		return val, 0, errors.New("failed to get ttl")
+	}
+
+	return val, ttlResult.Val(), nil
 }
 
 func Del(conn *redis.Client, key string) error {
