@@ -13,7 +13,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
-var metadata qentity.Metadata
+var Metadata qentity.Metadata
 
 func Return(c *gin.Context, statusCode int, message interface{}) {
 	start, isExist := c.Get("start")
@@ -29,7 +29,7 @@ func Return(c *gin.Context, statusCode int, message interface{}) {
 	} else if statusCode >= 300 && statusCode < 400 {
 		c.Redirect(statusCode, fmt.Sprintf("%v", message))
 	} else if statusCode >= 400 && statusCode < 600 {
-		var res = qentity.Response{Status: "error", Code: statusCode, Message: message, ProcessTime: qmodule.CountElapsed(a), Version: metadata.Version}
+		var res = qentity.Response{Status: "error", Code: statusCode, Message: message, ProcessTime: qmodule.CountElapsed(a), Version: Metadata.Version}
 		c.AbortWithStatusJSON(statusCode, res)
 	} else {
 		var res = qentity.Response{Status: "error", Code: 500, Message: fmt.Sprintf("http status code: %v is not listed", statusCode), ProcessTime: qmodule.CountElapsed(a), Version: metadata.Version}
