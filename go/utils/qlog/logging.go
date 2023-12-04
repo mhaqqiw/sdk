@@ -6,11 +6,14 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/mhaqqiw/sdk/go/qconstant"
 	"github.com/mhaqqiw/sdk/go/qentity"
 	"github.com/newrelic/go-agent/v3/newrelic"
 )
+
+var Config qentity.Monitoring
 
 func getRelativePath(absolutePath string) string {
 	// Get the current working directory
@@ -56,12 +59,15 @@ func Trace() string {
 	return "unable to get trace"
 }
 
-func LogPrint(typeLog string, identifier string, trace string, err string, monitoring qentity.Monitoring) {
+func LogPrint(typeLog string, identifier string, trace string, err string) {
+	currentTime := time.Now()
+	formattedTime := currentTime.Format("2006-01-02 15:04:05 -0700")
+
 	if typeLog == "" {
 		typeLog = qconstant.ERROR
 	}
-	log.Printf("[%s][%s] - %s \n\t [%s] %s\n", typeLog, identifier, trace, typeLog, strings.TrimSpace(err))
-	if monitoring.NRConfig.IsEnabled {
+	log.Printf("[%s][%s][%s] - %s \n\t [%s] %s\n", formattedTime, typeLog, identifier, trace, typeLog, strings.TrimSpace(err))
+	if Config.NRConfig.IsEnabled {
 		//TODO: send NR metrics
 	}
 }
