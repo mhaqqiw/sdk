@@ -13,10 +13,12 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
-func Return(c *gin.Context, statusCode int, metadata qentity.Metadata, message interface{}, monitoring qentity.Monitoring) {
+var metadata qentity.Metadata
+
+func Return(c *gin.Context, statusCode int, message interface{}) {
 	start, isExist := c.Get("start")
 	if !isExist {
-		qlog.LogPrint(qconstant.INFO, "c.Get", qlog.Trace(), "request didn't set timestamp", monitoring)
+		qlog.LogPrint(qconstant.INFO, "c.Get", qlog.Trace(), "request didn't set timestamp")
 	}
 	a := time.Time{}
 	mapstructure.Decode(start, &a)
