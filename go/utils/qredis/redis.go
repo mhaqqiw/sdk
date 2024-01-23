@@ -14,13 +14,14 @@ var Prefix string
 var Conn *redis.Client
 var debug bool
 
-func CreateConn(init qentity.Redis) *redis.Client {
+func CreateConn(init qentity.Redis, useDebug bool) *redis.Client {
 	redisConn := redis.NewClient(&redis.Options{
 		Addr:     init.Host + ":" + init.Port,
 		Password: init.Password,
 		DB:       0,
 	})
 	Conn = redisConn
+	debug = useDebug
 	return redisConn
 }
 
@@ -69,6 +70,27 @@ func Get(module, key string) (string, time.Duration, error) {
 	}
 
 	return val, ttlResult.Val(), nil
+}
+
+func GetKeys(pattern string, overridePrefix bool) ([]string, error) {
+	var res []string
+	key := Prefix + ":" + pattern
+	if overridePrefix {
+		key = pattern
+	}
+
+	if debug {
+		fmt.Println("key", key)
+	}
+	val, err := Conn.Keys(key).Result()
+	if err != nil {
+		return res, errors.New("failed to get data")
+	}
+
+	for _, v := range val {
+		res = append(res, v)
+	}
+	return res, nil
 }
 
 func Del(module, key string) error {
