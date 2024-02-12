@@ -1,7 +1,9 @@
 package qmodule
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/google/uuid"
@@ -58,4 +60,34 @@ func GetDataFromUUID(uuidStr string) (qentity.UUIDData, error) {
 		nodeID = "00:00:00:00:00:00"
 	}
 	return res, nil
+}
+
+func CheckRecaptcha(secret, token, validateURL string) (qentity.SiteVerifyResponse, error) {
+	var body qentity.SiteVerifyResponse
+	req, err := http.NewRequest(http.MethodPost, validateURL, nil)
+	if err != nil {
+		return body, err
+	}
+	q := req.URL.Query()
+	q.Add("secret", secret)
+	q.Add("response", token)
+	req.URL.RawQuery = q.Encode()
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return body, err
+	}
+	defer resp.Body.Close()
+	if err = json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return body, err
+	}
+	return body, nil
+}
+
+func GenerateUUIDV1() (string, error) {
+	id, err := uuid.NewUUID()
+	if err != nil {
+		return "", err
+	}
+	return id.String(), nil
 }
