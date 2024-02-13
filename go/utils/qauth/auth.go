@@ -70,7 +70,7 @@ func Type3(initToken string) gin.HandlerFunc {
 		if err != nil {
 			return
 		}
-		token := c.Request.FormValue("api_key")
+		token := c.GetHeader("api_key")
 		//TODO: Validate Token
 		if token != initToken {
 			user, err := getUserData(session)
