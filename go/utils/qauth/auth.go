@@ -25,13 +25,9 @@ func WS() gin.HandlerFunc {
 }
 
 // Non Login User, Doesn't Need Captcha
-func Type1(recaptcha qentity.Recaptcha) gin.HandlerFunc {
+func Type1() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Set("start", time.Now())
-		err := validateRecaptcha(c, recaptcha)
-		if err != nil {
-			return
-		}
 		c.Next()
 	}
 }
