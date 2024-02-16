@@ -18,7 +18,7 @@ func CreateConn(init qentity.Redis, useDebug bool) *redis.Client {
 	redisConn := redis.NewClient(&redis.Options{
 		Addr:     init.Host + ":" + init.Port,
 		Password: init.Password,
-		DB:       0,
+		DB:       init.DB,
 	})
 	Conn = redisConn
 	debug = useDebug
@@ -61,7 +61,7 @@ func Get(module, key string) (string, time.Duration, error) {
 		if err == redis.Nil {
 			return "", 0, nil
 		}
-		return val, 0, errors.New("failed to get data")
+		return val, 0, err
 	}
 	ttlResult := Conn.TTL(key)
 	if ttlResult.Err() != nil {
