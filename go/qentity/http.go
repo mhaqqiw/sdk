@@ -1,6 +1,8 @@
 package qentity
 
-import "time"
+import (
+	"time"
+)
 
 type Response struct {
 	Status      string        `json:"status"`

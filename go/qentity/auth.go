@@ -113,3 +113,28 @@ type SessionData struct {
 	Password        []byte         `json:"password,omitempty"`
 	SessionID       string         `json:"session_id"`
 }
+
+type ResponseValidate struct {
+	SessionData SessionData   `json:"session_data"`
+	UserProject []UserProject `json:"user_project"`
+}
+
+type UserProject struct {
+	UserRoleID    string    `json:"id"`
+	UserCompanyID string    `json:"user_company_id"`
+	Roles         []Role    `json:"roles"`
+	CompanyID     string    `json:"company_id"`
+	ProjectID     string    `json:"project_id"`
+	Name          string    `json:"name"`
+	Email         string    `json:"email"`
+	IsAdmin       bool      `json:"is_admin"`
+	CreatedAt     time.Time `json:"created_at"`
+	CreatedBy     string    `json:"created_by"`
+	UpdatedAt     time.Time `json:"updated_at"`
+	UpdatedBy     string    `json:"updated_by"`
+}
+
+type Role struct {
+	RoleID   string `json:"id"`
+	RoleName string `json:"name"`
+}
