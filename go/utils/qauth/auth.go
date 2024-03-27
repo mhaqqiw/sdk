@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/mhaqqiw/sdk/go/qconstant"
@@ -122,7 +123,7 @@ func getUserData(session string) (qentity.SessionData, error) {
 func validateRecaptcha(c *gin.Context, recaptcha qentity.Recaptcha) error {
 	captchaToken := c.GetHeader(qconstant.CAPTCHA_TOKEN)
 	if captchaToken == "" {
-		h.Return(c, http.StatusBadRequest, "bad request")
+		h.Return(c, http.StatusBadRequest, "bad request: missing captcha token")
 		return errors.New("missing captcha token")
 	}
 	body, err := qmodule.CheckRecaptcha(recaptcha.Secret, captchaToken, recaptcha.ValidateURL)
@@ -131,7 +132,8 @@ func validateRecaptcha(c *gin.Context, recaptcha qentity.Recaptcha) error {
 		return err
 	}
 	if !body.Success {
-		h.Return(c, http.StatusBadRequest, "bad request")
+		qlog.LogPrint(qconstant.ERROR, "qmodule.CheckRecaptcha", qlog.Trace(), strings.Join(body.ErrorCodes, "\n"))
+		h.Return(c, http.StatusBadRequest, "bad request: failed to validate recaptcha")
 		return errors.New("failed to validate recaptcha")
 	}
 	if body.Score < recaptcha.Threshold {
