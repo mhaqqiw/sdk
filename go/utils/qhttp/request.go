@@ -22,32 +22,35 @@ func Return(c *gin.Context, statusCode int, message interface{}) {
 		qlog.LogPrint(qconstant.INFO, "c.Get", qlog.Trace(), "request didn't set timestamp")
 	}
 	a := time.Time{}
-	mapstructure.Decode(start, &a)
+	if start != nil {
+		mapstructure.Decode(start, &a)
+	}
 
 	var rawMessage json.RawMessage
 	var err error
 	switch v := message.(type) {
 	case string:
-		rawMessage = json.RawMessage(v)
+		rawMessage = json.RawMessage([]byte(fmt.Sprintf(`"%s"`, v)))
 	case []byte:
 		rawMessage = json.RawMessage(v)
 	default:
 		rawMessage, err = json.Marshal(v) // Best-effort conversion to JSON
 		if err != nil {
 			qlog.LogPrint(qconstant.ERROR, "json.Marshal", qlog.Trace(), err.Error())
+			rawMessage = json.RawMessage(`{"error":"failed to marshal message"}`)
 		}
 	}
 
 	if statusCode >= 1 && statusCode < 300 {
-		var res = qentity.Response{Status: "ok", Code: statusCode, Message: rawMessage, ProcessTime: qmodule.CountElapsed(a), Version: Metadata.Version}
-		c.IndentedJSON(int(res.Code), res)
+		res := qentity.Response{Status: "ok", Code: statusCode, Message: rawMessage, ProcessTime: qmodule.CountElapsed(a)}
+		c.IndentedJSON(res.Code, res)
 	} else if statusCode >= 300 && statusCode < 400 {
 		c.Redirect(statusCode, fmt.Sprintf("%v", message))
 	} else if statusCode >= 400 && statusCode < 600 {
-		var res = qentity.Response{Status: "error", Code: statusCode, Message: rawMessage, ProcessTime: qmodule.CountElapsed(a), Version: Metadata.Version}
+		res := qentity.Response{Status: "error", Code: statusCode, Message: rawMessage, ProcessTime: qmodule.CountElapsed(a)}
 		c.AbortWithStatusJSON(statusCode, res)
 	} else {
-		var res = qentity.Response{Status: "error", Code: 500, Message: json.RawMessage(fmt.Sprintf(`{"error":"http status code: %v is not listed"}`, statusCode)), ProcessTime: qmodule.CountElapsed(a), Version: Metadata.Version}
-		c.AbortWithStatusJSON(statusCode, res)
+		res := qentity.Response{Status: "error", Code: 500, Message: json.RawMessage(fmt.Sprintf(`{"error":"http status code: %v is not listed"}`, statusCode)), ProcessTime: qmodule.CountElapsed(a)}
+		c.AbortWithStatusJSON(500, res)
 	}
 }
