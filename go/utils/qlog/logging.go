@@ -14,6 +14,7 @@ import (
 )
 
 var Config qentity.Monitoring
+var DisableTrace bool
 
 func getRelativePath(absolutePath string) string {
 	// Get the current working directory
@@ -66,7 +67,10 @@ func LogPrint(typeLog string, identifier string, trace string, err string) {
 	if typeLog == "" {
 		typeLog = qconstant.ERROR
 	}
-	log.Printf("[%s][%s][%s] - %s \n\t [%s] %s\n", formattedTime, typeLog, identifier, trace, typeLog, strings.TrimSpace(err))
+	if DisableTrace {
+		trace = ""
+	}
+	log.Printf("[%s][%s][%s] - %s -> [%s] %s\n", formattedTime, typeLog, identifier, trace, typeLog, strings.TrimSpace(err))
 	if Config.NRConfig.IsEnabled {
 		//TODO: send NR metrics
 	}
