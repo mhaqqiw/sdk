@@ -80,7 +80,9 @@ func InitNRConfig(name string, key string, isForward bool) (*newrelic.Applicatio
 	app, err := newrelic.NewApplication(
 		newrelic.ConfigAppName(name),
 		newrelic.ConfigLicense(key),
+		newrelic.ConfigEnabled(true),
 		newrelic.ConfigAppLogForwardingEnabled(isForward),
+		newrelic.ConfigDistributedTracerEnabled(true),
 	)
 	if err != nil {
 		return nil, err
