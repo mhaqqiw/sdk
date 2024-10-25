@@ -8,6 +8,9 @@ type TableLimit struct {
 	Key       string     `json:"key" binding:"required"`
 	Value     int        `json:"value"`
 	Type      int        `json:"type" binding:"required"`
+	Name      string     `json:"name"`
+	Metric    string     `json:"metric"`
+	Desc      string     `json:"desc"`
 	ExpiredAt time.Time  `json:"expired_at"`
 	CreatedAt time.Time  `json:"created_at"`
 	CreatedBy string     `json:"created_by" binding:"required"`
