@@ -8,8 +8,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/mhaqqiw/sdk/go/qconstant"
 	"github.com/mhaqqiw/sdk/go/qentity"
+	"github.com/mhaqqiw/sdk/go/utils/qmodule"
+	"github.com/newrelic/go-agent/v3/integrations/nrgin"
 	"github.com/newrelic/go-agent/v3/newrelic"
 )
 
@@ -28,13 +31,7 @@ func getRelativePath(absolutePath string) string {
 	if strings.HasPrefix(absolutePath, currentDir) {
 		// Get the relative path by removing the current working directory from the beginning
 		relativePath := absolutePath[len(currentDir):]
-
-		// Remove the leading slash if present
-		if strings.HasPrefix(relativePath, "/") {
-			relativePath = relativePath[1:]
-		}
-
-		return relativePath
+		return strings.TrimPrefix(relativePath, "/")
 	}
 
 	// If the absolute path does not start with the current working directory, return the original path
@@ -88,4 +85,19 @@ func InitNRConfig(name string, key string, isForward bool) (*newrelic.Applicatio
 		return nil, err
 	}
 	return app, nil
+}
+
+func Middleware(router *gin.Engine, app *newrelic.Application) {
+	router.Use(nrgin.Middleware(app))
+	router.Use(func(ctx *gin.Context) {
+		traceId := ctx.Query("trace_id")
+		txn, ok := ctx.Value("newRelicTransaction").(*newrelic.Transaction)
+		if ok && traceId != "" {
+			txn.AddAttribute("trace_id", traceId)
+		} else if ok && traceId == "" {
+			uuid, _ := qmodule.GenerateUUIDV1()
+			txn.AddAttribute("trace_id", uuid)
+		}
+		ctx.Next()
+	})
 }

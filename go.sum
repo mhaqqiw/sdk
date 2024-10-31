@@ -111,6 +111,10 @@ github.com/newrelic/go-agent/v3 v3.27.0 h1:Z3XB49d8FKjRcGzCyViCO9itBxiLPSpwjY1Hl
 github.com/newrelic/go-agent/v3 v3.27.0/go.mod h1:TUzePinDc0BMH4Sui66rl4SBe6yOKJ5X/bRJekwuAtM=
 github.com/newrelic/go-agent/v3 v3.35.0 h1:YIG6mhwzIEBaaG3YmxPHgBfBFmHNoChxbKYH5SiwGKQ=
 github.com/newrelic/go-agent/v3 v3.35.0/go.mod h1:GNTda53CohAhkgsc7/gqSsJhDZjj8vaky5u+vKz7wqM=
+github.com/newrelic/go-agent/v3 v3.35.1 h1:N43qBNDILmnwLDCSfnE1yy6adyoVEU95nAOtdUgG4vA=
+github.com/newrelic/go-agent/v3 v3.35.1/go.mod h1:GNTda53CohAhkgsc7/gqSsJhDZjj8vaky5u+vKz7wqM=
+github.com/newrelic/go-agent/v3/integrations/nrgin v1.3.2 h1:z3joEubnrRNUnBgNd+JJ8oJURW7h6lwI/yc3CwZQXXI=
+github.com/newrelic/go-agent/v3/integrations/nrgin v1.3.2/go.mod h1:yZ+3kTSN7pBWnt2wP7BFvluktBoLtSvCevAW0wNeO+g=
 github.com/nxadm/tail v1.4.4/go.mod h1:kenIhsEOeOJmVchQTgglprH7qJGnHDVpk1VPCcaMI8A=
 github.com/nxadm/tail v1.4.8 h1:nPr65rt6Y5JFSKQO7qToXr7pePgD6Gwiw05lkbyAQTE=
 github.com/nxadm/tail v1.4.8/go.mod h1:+ncqLTQzXmGhMZNUePPaPqPvBxHAIsmXswZKocGu+AU=
