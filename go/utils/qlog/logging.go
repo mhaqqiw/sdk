@@ -1,6 +1,7 @@
 package qlog
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -71,6 +72,63 @@ func LogPrint(typeLog string, identifier string, trace string, err string) {
 	if Config.NRConfig.IsEnabled {
 		//TODO: send NR metrics
 	}
+}
+
+func ErrorCtx(ctx context.Context, err error) {
+	trace := Trace()
+
+	// get track_id from context
+	trackID, _ := ctx.Value("track_id").(string)
+	if trackID == "" {
+		trackID, _ = qmodule.GenerateUUIDV1()
+	}
+
+	LogPrint(qconstant.ERROR, trackID, trace, err.Error())
+}
+
+func InfoCtx(ctx context.Context, message string) {
+	trace := Trace()
+
+	// get track_id from context
+	trackID, _ := ctx.Value("track_id").(string)
+	if trackID == "" {
+		trackID, _ = qmodule.GenerateUUIDV1()
+	}
+
+	LogPrint(qconstant.INFO, trackID, trace, message)
+}
+
+func DebugCtx(ctx context.Context, message string) {
+	trace := Trace()
+
+	// get track_id from context
+	trackID, _ := ctx.Value("track_id").(string)
+	if trackID == "" {
+		trackID, _ = qmodule.GenerateUUIDV1()
+	}
+
+	LogPrint(qconstant.DEBUG, trackID, trace, message)
+}
+
+func Error(err error) {
+	trace := Trace()
+	uuid, _ := qmodule.GenerateUUIDV1()
+
+	LogPrint(qconstant.ERROR, uuid, trace, err.Error())
+}
+
+func Info(message string) {
+	trace := Trace()
+	uuid, _ := qmodule.GenerateUUIDV1()
+
+	LogPrint(qconstant.INFO, uuid, trace, message)
+}
+
+func Debug(message string) {
+	trace := Trace()
+	uuid, _ := qmodule.GenerateUUIDV1()
+
+	LogPrint(qconstant.DEBUG, uuid, trace, message)
 }
 
 func InitNRConfig(name string, key string, isForward bool) (*newrelic.Application, error) {
