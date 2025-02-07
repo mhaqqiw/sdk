@@ -17,8 +17,15 @@ import (
 	"github.com/newrelic/go-agent/v3/newrelic"
 )
 
-var Config qentity.Monitoring
-var DisableTrace bool
+var (
+	Config       qentity.Monitoring
+	DisableTrace bool
+)
+
+const (
+	StackCallerDefault  = 2 // default caller that call Tracer outside this package
+	StackCallerExternal = 3 // external caller (outside package) eg: qlog.ErrorCtx, qlog.InfoCtx, qlog.DebugCtx
+)
 
 func getRelativePath(absolutePath string) string {
 	// Get the current working directory
@@ -39,9 +46,15 @@ func getRelativePath(absolutePath string) string {
 	return absolutePath
 }
 
-func Trace() string {
+func Trace(stackCallers ...int) string {
+	stackLevel := StackCallerDefault
+
+	if len(stackCallers) > 0 {
+		stackLevel = stackCallers[0]
+	}
+
 	pc := make([]uintptr, 15)
-	runtime.Callers(2, pc)
+	runtime.Callers(stackLevel, pc)
 	frames := runtime.CallersFrames(pc)
 
 	for {
@@ -75,7 +88,7 @@ func LogPrint(typeLog string, identifier string, trace string, err string) {
 }
 
 func ErrorCtx(ctx context.Context, err error) {
-	trace := Trace()
+	trace := Trace(StackCallerExternal)
 
 	// get track_id from context
 	trackID, _ := ctx.Value("track_id").(string)
@@ -87,7 +100,7 @@ func ErrorCtx(ctx context.Context, err error) {
 }
 
 func InfoCtx(ctx context.Context, message string) {
-	trace := Trace()
+	trace := Trace(StackCallerExternal)
 
 	// get track_id from context
 	trackID, _ := ctx.Value("track_id").(string)
@@ -99,7 +112,7 @@ func InfoCtx(ctx context.Context, message string) {
 }
 
 func DebugCtx(ctx context.Context, message string) {
-	trace := Trace()
+	trace := Trace(StackCallerExternal)
 
 	// get track_id from context
 	trackID, _ := ctx.Value("track_id").(string)
@@ -111,21 +124,21 @@ func DebugCtx(ctx context.Context, message string) {
 }
 
 func Error(err error) {
-	trace := Trace()
+	trace := Trace(StackCallerExternal)
 	uuid, _ := qmodule.GenerateUUIDV1()
 
 	LogPrint(qconstant.ERROR, uuid, trace, err.Error())
 }
 
 func Info(message string) {
-	trace := Trace()
+	trace := Trace(StackCallerExternal)
 	uuid, _ := qmodule.GenerateUUIDV1()
 
 	LogPrint(qconstant.INFO, uuid, trace, message)
 }
 
 func Debug(message string) {
-	trace := Trace()
+	trace := Trace(StackCallerExternal)
 	uuid, _ := qmodule.GenerateUUIDV1()
 
 	LogPrint(qconstant.DEBUG, uuid, trace, message)
