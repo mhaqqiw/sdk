@@ -10,12 +10,8 @@ import (
 	"io"
 )
 
-func AESEncrypt(txt string, key string) (string, error) {
-	keyByte, err := hex.DecodeString(key)
-	if err != nil {
-		return "", err
-	}
-	block, err := aes.NewCipher(keyByte)
+func AESEncrypt(txt string, key []byte) (string, error) {
+	block, err := aes.NewCipher(key)
 	if err != nil {
 		return "", err
 	}
@@ -32,17 +28,13 @@ func AESEncrypt(txt string, key string) (string, error) {
 	return base64.URLEncoding.EncodeToString(ciphertext), nil
 }
 
-func AESDecrypt(ciphertext string, key string) ([]byte, error) {
-	keyByte, err := hex.DecodeString(key)
-	if err != nil {
-		return nil, err
-	}
+func AESDecrypt(ciphertext string, key []byte) ([]byte, error) {
 	data, err := base64.URLEncoding.DecodeString(ciphertext)
 	if err != nil {
 		return nil, err
 	}
 
-	block, err := aes.NewCipher(keyByte)
+	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
 	}
