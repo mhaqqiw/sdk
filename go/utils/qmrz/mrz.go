@@ -17,112 +17,112 @@ const VISA_A = "MRV-A"
 const VISA_B = "MRV-B"
 
 type MRZ struct {
-	DocumentType  string
-	DocumentClass string
+	DocumentType  string `json:"document_type"`
+	DocumentClass string `json:"document_class"`
 	Passport      struct {
-		Country            string
-		Name               string
-		DocNumber          string
-		HashDocNumber      string
-		Nationality        string
-		DOB                string
-		HashDOB            string
-		Sex                string
-		ExpiredDate        string
-		HashExpiredDate    string
-		PersonalNumber     string
-		HashPersonalNumber string
-		FinalHash          string
+		Country            string `json:"country"`
+		Name               string `json:"name"`
+		DocNumber          string `json:"doc_number"`
+		HashDocNumber      string `json:"hash_doc_number"`
+		Nationality        string `json:"nationality"`
+		DOB                string `json:"dob"`
+		HashDOB            string `json:"hash_dob"`
+		Sex                string `json:"sex"`
+		ExpiredDate        string `json:"expired_date"`
+		HashExpiredDate    string `json:"hash_expired_date"`
+		PersonalNumber     string `json:"personal_number"`
+		HashPersonalNumber string `json:"hash_personal_number"`
+		FinalHash          string `json:"final_hash"`
 		ExpectedHash       struct {
-			IsValid            bool
-			HashDocNumber      string
-			HashDOB            string
-			HashExpiredDate    string
-			HashPersonalNumber string
-			FinalHash          string
-		}
-	}
+			IsValid            bool   `json:"is_valid"`
+			HashDocNumber      string `json:"hash_doc_number"`
+			HashDOB            string `json:"hash_dob"`
+			HashExpiredDate    string `json:"hash_expired_date"`
+			HashPersonalNumber string `json:"hash_personal_number"`
+			FinalHash          string `json:"final_hash"`
+		} `json:"expected_hash"`
+	} `json:"passport"`
 	TD1 struct {
-		Country         string
-		DocNumber       string
-		HashDocNumber   string
-		AdditionalInfo1 string
-		DOB             string
-		HashDOB         string
-		Sex             string
-		ExpiredDate     string
-		HashExpiredDate string
-		Nationality     string
-		AdditionalInfo2 string
-		FinalHash       string
-		Name            string
+		Country         string `json:"country"`
+		DocNumber       string `json:"doc_number"`
+		HashDocNumber   string `json:"hash_doc_number"`
+		AdditionalInfo1 string `json:"additional_info_1"`
+		DOB             string `json:"dob"`
+		HashDOB         string `json:"hash_dob"`
+		Sex             string `json:"sex"`
+		ExpiredDate     string `json:"expired_date"`
+		HashExpiredDate string `json:"hash_expired_date"`
+		Nationality     string `json:"nationality"`
+		AdditionalInfo2 string `json:"additional_info_2"`
+		FinalHash       string `json:"final_hash"`
+		Name            string `json:"name"`
 		ExpectedHash    struct {
-			IsValid         bool
-			HashDocNumber   string
-			HashDOB         string
-			HashExpiredDate string
-			FinalHash       string
-		}
-	}
+			IsValid         bool   `json:"is_valid"`
+			HashDocNumber   string `json:"hash_doc_number"`
+			HashDOB         string `json:"hash_dob"`
+			HashExpiredDate string `json:"hash_expired_date"`
+			FinalHash       string `json:"final_hash"`
+		} `json:"expected_hash"`
+	} `json:"td1"`
 	TD2 struct {
-		Country         string
-		Name            string
-		DocNumber       string
-		HashDocNumber   string
-		Nationality     string
-		DOB             string
-		HashDOB         string
-		Sex             string
-		ExpiredDate     string
-		HashExpiredDate string
-		AdditionalInfo  string
-		FinalHash       string
+		Country         string `json:"country"`
+		Name            string `json:"name"`
+		DocNumber       string `json:"doc_number"`
+		HashDocNumber   string `json:"hash_doc_number"`
+		Nationality     string `json:"nationality"`
+		DOB             string `json:"dob"`
+		HashDOB         string `json:"hash_dob"`
+		Sex             string `json:"sex"`
+		ExpiredDate     string `json:"expired_date"`
+		HashExpiredDate string `json:"hash_expired_date"`
+		AdditionalInfo  string `json:"additional_info"`
+		FinalHash       string `json:"final_hash"`
 		ExpectedHash    struct {
-			IsValid         bool
-			HashDocNumber   string
-			HashDOB         string
-			HashExpiredDate string
-			FinalHash       string
-		}
-	}
+			IsValid         bool   `json:"is_valid"`
+			HashDocNumber   string `json:"hash_doc_number"`
+			HashDOB         string `json:"hash_dob"`
+			HashExpiredDate string `json:"hash_expired_date"`
+			FinalHash       string `json:"final_hash"`
+		} `json:"expected_hash"`
+	} `json:"td2"`
 	VISAA struct {
-		Country         string
-		Name            string
-		DocNumber       string
-		HashDocNumber   string
-		Nationality     string
-		DOB             string
-		HashDOB         string
-		Sex             string
-		ExpiredDate     string
-		HashExpiredDate string
-		AdditionalInfo  string
+		Country         string `json:"country"`
+		Name            string `json:"name"`
+		DocNumber       string `json:"doc_number"`
+		HashDocNumber   string `json:"hash_doc_number"`
+		Nationality     string `json:"nationality"`
+		DOB             string `json:"dob"`
+		HashDOB         string `json:"hash_dob"`
+		Sex             string `json:"sex"`
+		ExpiredDate     string `json:"expired_date"`
+		HashExpiredDate string `json:"hash_expired_date"`
+		AdditionalInfo  string `json:"additional_info"`
 		ExpectedHash    struct {
-			IsValid         bool
-			HashDocNumber   string
-			HashDOB         string
-			HashExpiredDate string
-		}
-	}
+			IsValid         bool   `json:"is_valid"`
+			HashDocNumber   string `json:"hash_doc_number"`
+			HashDOB         string `json:"hash_dob"`
+			HashExpiredDate string `json:"hash_expired_date"`
+		} `json:"expected_hash"`
+	} `json:"visa_a"`
 	VISAB struct {
-		Country         string
-		Name            string
-		DocNumber       string
-		HashDocNumber   string
-		Nationality     string
-		DOB             string
-		HashDOB         string
-		Sex             string
-		ExpiredDate     string
-		HashExpiredDate string
-		AdditionalInfo  string
+		Country         string `json:"country"`
+		Name            string `json:"name"`
+		DocNumber       string `json:"doc_number"`
+		HashDocNumber   string `json:"hash_doc_number"`
+		Nationality     string `json:"nationality"`
+		DOB             string `json:"dob"`
+		HashDOB         string `json:"hash_dob"`
+		Sex             string `json:"sex"`
+		ExpiredDate     string `json:"expired_date"`
+		HashExpiredDate string `json:"hash_expired_date"`
+		AdditionalInfo  string `json:"additional_info"`
 		ExpectedHash    struct {
-			IsValid         bool
-			HashDocNumber   string
-			HashDOB         string
-			HashExpiredDate string
-		}
-	}
+			IsValid         bool   `json:"is_valid"`
+			HashDocNumber   string `json:"hash_doc_number"`
+			HashDOB         string `json:"hash_dob"`
+			HashExpiredDate string `json:"hash_expired_date"`
+		} `json:"expected_hash"`
+	} `json:"visa_b"`
 }
 
 func ParseMRZ(mrz string) (ret MRZ, err error) {
