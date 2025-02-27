@@ -29,7 +29,7 @@ func AESEncrypt(txt string, key []byte) (string, error) {
 }
 
 func AESDecrypt(ciphertext string, key []byte) ([]byte, error) {
-	data, err := base64.URLEncoding.DecodeString(ciphertext)
+	data, err := base64.StdEncoding.DecodeString(ciphertext)
 	if err != nil {
 		return nil, err
 	}
