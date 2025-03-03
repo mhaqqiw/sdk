@@ -12,6 +12,7 @@ import (
 type BCBP struct {
 	FormatCode   string `json:"format_code"`
 	TotalLeg     string `json:"total_leg"`
+	Name         string `json:"name"`
 	FirstName    string `json:"first_name"`
 	LastName     string `json:"last_name"`
 	Indicator    string `json:"indicator"`
@@ -91,8 +92,13 @@ func ParseBCBP(data string) (BCBP, error) {
 
 	nameField := strings.TrimSpace(data[2:22])
 	nameParts := strings.Split(nameField, "/")
-	if len(nameParts) != 2 {
+	if len(nameParts) < 1 {
 		return result, errors.New("invalid BCBP (Code: 2)")
+	}
+
+	firstName := ""
+	if len(nameParts) > 1 {
+		firstName = nameParts[1]
 	}
 
 	date, err := julianDayToGregorian(strings.TrimSpace(data[44:47]))
@@ -103,8 +109,9 @@ func ParseBCBP(data string) (BCBP, error) {
 	result = BCBP{
 		FormatCode:   strings.TrimSpace(data[0:1]),
 		TotalLeg:     strings.TrimSpace(data[1:2]),
-		FirstName:    strings.TrimSpace(nameParts[1]),
+		FirstName:    strings.TrimSpace(firstName),
 		LastName:     strings.TrimSpace(nameParts[0]),
+		Name:         strings.TrimSpace(data[2:22]),
 		Indicator:    strings.TrimSpace(data[22:23]),
 		PnrCode:      strings.TrimSpace(data[23:30]),
 		From:         strings.TrimSpace(data[30:33]),
