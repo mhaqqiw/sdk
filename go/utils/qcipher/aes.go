@@ -25,7 +25,7 @@ func AESEncrypt(txt string, key []byte) (string, error) {
 	stream := cipher.NewCTR(block, iv)
 	stream.XORKeyStream(ciphertext[aes.BlockSize:], []byte(txt))
 
-	return base64.URLEncoding.EncodeToString(ciphertext), nil
+	return base64.StdEncoding.EncodeToString(ciphertext), nil
 }
 
 func AESDecrypt(ciphertext string, key []byte) ([]byte, error) {
