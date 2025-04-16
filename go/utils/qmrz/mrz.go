@@ -127,7 +127,7 @@ type MRZ struct {
 
 func ParseMRZ(mrz string) (ret MRZ, err error) {
 	arr := strings.Split(strings.TrimSpace(mrz), "\n")
-	if len(arr) < 2 {
+	if len(arr) < 1 {
 		return ret, fmt.Errorf("Invalid MRZ (Code: 1)")
 
 	}
@@ -137,14 +137,31 @@ func ParseMRZ(mrz string) (ret MRZ, err error) {
 
 	switch docType {
 	case 'A', 'B', 'C', 'I':
+		if len(arr[0]) > TD2_CHAR_LEN {
+			if charLen == (3 * TD1_CHAR_LEN) {
+				arr = splitByN(arr[0], TD1_CHAR_LEN)
+			} else {
+				arr = splitByN(arr[0], TD2_CHAR_LEN)
+			}
+		}
 		if charLen == TD1_CHAR_LEN {
 			return TD1MRZ(arr, ret)
 		} else {
 			return TD2MRZ(arr, ret)
 		}
 	case 'P':
+		if len(arr[0]) > TD3_CHAR_LEN {
+			arr = splitByN(arr[0], TD3_CHAR_LEN)
+		}
 		return PassportMRZ(arr, ret)
 	case 'V':
+		if len(arr[0]) > VISA_A_CHAR_LEN {
+			if charLen == (2 * VISA_A_CHAR_LEN) {
+				arr = splitByN(arr[0], VISA_A_CHAR_LEN)
+			} else {
+				arr = splitByN(arr[0], VISA_B_CHAR_LEN)
+			}
+		}
 		if charLen == VISA_A_CHAR_LEN {
 			return VISAAMRZ(arr, ret)
 		} else {
@@ -157,7 +174,7 @@ func ParseMRZ(mrz string) (ret MRZ, err error) {
 
 func PassportMRZ(data []string, ret MRZ) (MRZ, error) {
 	data[0] = strings.TrimSpace(data[0])
-	if len(data[0]) < TD1_CHAR_LEN {
+	if len(data[0]) < TD3_CHAR_LEN {
 		return ret, fmt.Errorf("Invalid MRZ in line 1 (Code: 3)")
 	}
 	ret.DocumentType = clear(data[0][:2])
@@ -208,7 +225,7 @@ func TD1MRZ(data []string, ret MRZ) (MRZ, error) {
 	ret.TD1.AdditionalInfo2 = clear(data[1][18:29])
 	ret.TD1.FinalHash = clear(data[1][29:])
 	data[2] = strings.TrimSpace(data[2])
-	if len(data[2]) < TD2_CHAR_LEN {
+	if len(data[2]) < TD1_CHAR_LEN {
 		return ret, fmt.Errorf("Invalid MRZ in line 3 (Code: 3)")
 	}
 	ret.TD2.Name = clear(data[2])
@@ -296,4 +313,16 @@ func clear(str string) string {
 		}
 	}
 	return strings.Join(ret, " ")
+}
+
+func splitByN(s string, n int) []string {
+	var result []string
+	for i := 0; i < len(s); i += n {
+		end := i + n
+		if end > len(s) {
+			end = len(s)
+		}
+		result = append(result, s[i:end])
+	}
+	return result
 }
