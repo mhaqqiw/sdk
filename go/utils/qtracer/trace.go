@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/gin-gonic/gin"
+	"github.com/newrelic/go-agent/v3/integrations/nrgin"
 	"github.com/newrelic/go-agent/v3/newrelic"
 )
 
@@ -35,6 +37,10 @@ func (s *Span) Finish() {
 
 func InitTracer(data *newrelic.Application) {
 	app = data
+}
+
+func GinMiddleware() gin.HandlerFunc {
+	return nrgin.Middleware(app)
 }
 
 func StartGoroutineSpanFromContext(ctx context.Context, name string) (Span, context.Context) {
