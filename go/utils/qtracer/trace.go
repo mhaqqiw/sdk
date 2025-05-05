@@ -72,6 +72,7 @@ func StartSpanFromContext(ctx context.Context, name string) (Span, context.Conte
 
 	seg := StartSegment(ctx, "[trace] "+name)
 	span.nrSegment = seg
+	span.ctx = ctx
 	span.md = GetMetadataFromContext(ctx)
 
 	return span, ctx
