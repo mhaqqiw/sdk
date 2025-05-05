@@ -1,8 +1,11 @@
 package qmrz
 
 import (
+	"errors"
 	"fmt"
+	"strconv"
 	"strings"
+	"time"
 )
 
 const TD1_CHAR_LEN = 30
@@ -325,4 +328,30 @@ func splitByN(s string, n int) []string {
 		result = append(result, s[i:end])
 	}
 	return result
+}
+
+func ParseMRZExpiry(expiry string) (time.Time, error) {
+	var ret time.Time
+	if len(expiry) != 6 {
+		return ret, errors.New("invalid expiry")
+	}
+
+	yearPart := expiry[:2]
+	monthPart := expiry[2:4]
+	dayPart := expiry[4:6]
+	baseCentury := (time.Now().Year() / 100) * 100
+
+	yy, err := strconv.Atoi(yearPart)
+	if err != nil {
+		return ret, err
+	}
+	fullYear := baseCentury + yy
+
+	date := fmt.Sprintf("%d-%s-%s", fullYear, monthPart, dayPart)
+
+	ret, err = time.Parse("2006-01-02", date)
+	if err != nil {
+		return ret, err
+	}
+	return ret, nil
 }
