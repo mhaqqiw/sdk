@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 )
 
 const TD1_CHAR_LEN = 30
@@ -19,33 +20,35 @@ const TD3 = "TD3"
 const VISA_A = "MRV-A"
 const VISA_B = "MRV-B"
 
-type MRZ struct {
-	DocumentType  string `json:"document_type"`
-	DocumentClass string `json:"document_class"`
-	Passport      struct {
-		Country            string `json:"country"`
-		Name               string `json:"name"`
-		DocNumber          string `json:"doc_number"`
+type Passport struct {
+	Country            string `json:"country"`
+	Name               string `json:"name"`
+	DocNumber          string `json:"doc_number"`
+	HashDocNumber      string `json:"hash_doc_number"`
+	Nationality        string `json:"nationality"`
+	DOB                string `json:"dob"`
+	HashDOB            string `json:"hash_dob"`
+	Sex                string `json:"sex"`
+	ExpiredDate        string `json:"expired_date"`
+	HashExpiredDate    string `json:"hash_expired_date"`
+	PersonalNumber     string `json:"personal_number"`
+	HashPersonalNumber string `json:"hash_personal_number"`
+	FinalHash          string `json:"final_hash"`
+	ExpectedHash       struct {
+		IsValid            bool   `json:"is_valid"`
 		HashDocNumber      string `json:"hash_doc_number"`
-		Nationality        string `json:"nationality"`
-		DOB                string `json:"dob"`
 		HashDOB            string `json:"hash_dob"`
-		Sex                string `json:"sex"`
-		ExpiredDate        string `json:"expired_date"`
 		HashExpiredDate    string `json:"hash_expired_date"`
-		PersonalNumber     string `json:"personal_number"`
 		HashPersonalNumber string `json:"hash_personal_number"`
 		FinalHash          string `json:"final_hash"`
-		ExpectedHash       struct {
-			IsValid            bool   `json:"is_valid"`
-			HashDocNumber      string `json:"hash_doc_number"`
-			HashDOB            string `json:"hash_dob"`
-			HashExpiredDate    string `json:"hash_expired_date"`
-			HashPersonalNumber string `json:"hash_personal_number"`
-			FinalHash          string `json:"final_hash"`
-		} `json:"expected_hash"`
-	} `json:"passport"`
-	TD1 struct {
+	} `json:"expected_hash"`
+}
+
+type MRZ struct {
+	DocumentType  string   `json:"document_type"`
+	DocumentClass string   `json:"document_class"`
+	Passport      Passport `json:"passport"`
+	TD1           struct {
 		Country         string `json:"country"`
 		DocNumber       string `json:"doc_number"`
 		HashDocNumber   string `json:"hash_doc_number"`
@@ -128,6 +131,98 @@ type MRZ struct {
 	} `json:"visa_b"`
 }
 
+func pad(text string, length int, char rune) string {
+	for len(text) < length {
+		text += string(char)
+	}
+	if len(text) > length {
+		return text[:length]
+	}
+	return text
+}
+
+func formatName(name string) string {
+	parts := strings.Fields(strings.ToUpper(name))
+	if len(parts) == 0 {
+		return ""
+	}
+	surname := parts[0]
+	givenNames := strings.Join(parts[1:], "<")
+	formatted := surname + "<<" + givenNames
+	return strings.ReplaceAll(formatted, " ", "<")
+}
+
+func formatDate(dateStr string) string {
+	parsed, err := time.Parse("2006-01-02", dateStr)
+	if err != nil {
+		return "000000"
+	}
+	return parsed.Format("060102")
+}
+
+func charValue(char rune) int {
+	switch {
+	case unicode.IsDigit(char):
+		return int(char - '0')
+	case char >= 'A' && char <= 'Z':
+		return int(char-'A') + 10
+	case char == '<':
+		return 0
+	default:
+		return 0
+	}
+}
+
+func computeCheckDigit(input string) int {
+	weights := []int{7, 3, 1}
+	sum := 0
+	for i, r := range input {
+		sum += charValue(r) * weights[i%3]
+	}
+	return sum % 10
+}
+
+func GenerateMRZ(mrzType string, mrz MRZ) (string, error) {
+	if mrzType != TD3 {
+		return "", errors.New("Unsupported MRZ Type")
+	}
+	data := mrz.Passport
+	line1 := "P<" + pad(strings.ToUpper(data.Country), 3, '<') + pad(formatName(data.Name), 39, '<')
+
+	passportNumber := pad(strings.ToUpper(data.DocNumber), 9, '<')
+	passportNumberCheck := computeCheckDigit(passportNumber)
+
+	dob := formatDate(data.DOB)
+	dobCheck := computeCheckDigit(dob)
+
+	expiry := formatDate(data.ExpiredDate)
+	expiryCheck := computeCheckDigit(expiry)
+
+	personalNumber := pad(data.PersonalNumber, 14, '<')
+	personalNumberCheck := computeCheckDigit(personalNumber)
+
+	sex := "<" // default placeholder if empty
+	if len(data.Sex) > 0 {
+		sex = strings.ToUpper(string(data.Sex[0]))
+	}
+
+	line2Body := passportNumber +
+		fmt.Sprintf("%d", passportNumberCheck) +
+		pad(strings.ToUpper(data.Nationality), 3, '<') +
+		dob +
+		fmt.Sprintf("%d", dobCheck) +
+		sex + // convert 'female' -> 'F'
+		expiry +
+		fmt.Sprintf("%d", expiryCheck) +
+		personalNumber +
+		fmt.Sprintf("%d", personalNumberCheck)
+
+	compositeCheck := computeCheckDigit(line2Body)
+	line2 := line2Body + fmt.Sprintf("%d", compositeCheck)
+
+	return line1 + "\n" + line2, nil
+}
+
 func ParseMRZ(mrz string) (ret MRZ, err error) {
 	arr := strings.Split(strings.TrimSpace(mrz), "\n")
 	if len(arr) < 1 {
@@ -201,6 +296,7 @@ func PassportMRZ(data []string, ret MRZ) (MRZ, error) {
 	ret.Passport.FinalHash = clear(data[1][43:])
 	return ret, nil
 }
+
 func TD1MRZ(data []string, ret MRZ) (MRZ, error) {
 	if len(data) < 3 {
 		return ret, fmt.Errorf("Invalid MRZ (Code: 3)")
