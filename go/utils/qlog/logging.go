@@ -25,6 +25,7 @@ var (
 const (
 	StackCallerDefault  = 2 // default caller that call Tracer outside this package
 	StackCallerExternal = 3 // external caller (outside package) eg: qlog.ErrorCtx, qlog.InfoCtx, qlog.DebugCtx
+	TRACK_ID            = "track-id"
 )
 
 func getRelativePath(absolutePath string) string {
@@ -91,7 +92,7 @@ func ErrorCtx(ctx context.Context, err error) {
 	trace := Trace(StackCallerExternal)
 
 	// get track_id from context
-	trackID, _ := ctx.Value("track_id").(string)
+	trackID, _ := ctx.Value(TRACK_ID).(string)
 	if trackID == "" {
 		trackID, _ = qmodule.GenerateUUIDV1()
 	}
@@ -103,7 +104,7 @@ func InfoCtx(ctx context.Context, message string) {
 	trace := Trace(StackCallerExternal)
 
 	// get track_id from context
-	trackID, _ := ctx.Value("track_id").(string)
+	trackID, _ := ctx.Value(TRACK_ID).(string)
 	if trackID == "" {
 		trackID, _ = qmodule.GenerateUUIDV1()
 	}
@@ -115,7 +116,7 @@ func DebugCtx(ctx context.Context, message string) {
 	trace := Trace(StackCallerExternal)
 
 	// get track_id from context
-	trackID, _ := ctx.Value("track_id").(string)
+	trackID, _ := ctx.Value(TRACK_ID).(string)
 	if trackID == "" {
 		trackID, _ = qmodule.GenerateUUIDV1()
 	}
