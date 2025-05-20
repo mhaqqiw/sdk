@@ -20,13 +20,27 @@ import (
 var (
 	Config       qentity.Monitoring
 	DisableTrace bool
+	app          *newrelic.Application
+	TRACK_ID     = "track-id"
 )
 
 const (
 	StackCallerDefault  = 2 // default caller that call Tracer outside this package
 	StackCallerExternal = 3 // external caller (outside package) eg: qlog.ErrorCtx, qlog.InfoCtx, qlog.DebugCtx
-	TRACK_ID            = "track-id"
+
 )
+
+type LogConfig struct {
+	NR      *newrelic.Application
+	trackID string
+}
+
+func InitTracer(data LogConfig) {
+	app = data.NR
+	if data.trackID != "" {
+		TRACK_ID = data.trackID
+	}
+}
 
 func getRelativePath(absolutePath string) string {
 	// Get the current working directory
@@ -83,8 +97,16 @@ func LogPrint(typeLog string, identifier string, trace string, err string) {
 		trace = ""
 	}
 	log.Printf("[%s][%s][%s] - %s -> [%s] %s\n", formattedTime, typeLog, identifier, trace, typeLog, strings.TrimSpace(err))
-	if Config.NRConfig.IsEnabled {
-		//TODO: send NR metrics
+	if app != nil {
+		attributes := map[string]interface{}{
+			"time":      formattedTime,
+			"type":      typeLog,
+			"track_id":  identifier,
+			"trace":     trace,
+			"message":   err,
+			"timestamp": currentTime.Unix(),
+		}
+		app.RecordCustomEvent("CustomLog", attributes)
 	}
 }
 
