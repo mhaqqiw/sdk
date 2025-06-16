@@ -3,6 +3,7 @@ package qlog
 import (
 	"context"
 	"fmt"
+	"github.com/newrelic/go-agent/v3/integrations/logcontext-v2/logWriter"
 	"log"
 	"os"
 	"runtime"
@@ -21,6 +22,7 @@ var (
 	Config       qentity.Monitoring
 	DisableTrace bool
 	app          *newrelic.Application
+	nrLogger     *log.Logger
 	TRACK_ID     = "track-id"
 )
 
@@ -40,6 +42,8 @@ func InitTracer(data LogConfig) {
 	if data.trackID != "" {
 		TRACK_ID = data.trackID
 	}
+	nrWriter := logWriter.New(os.Stdout, data.NR)
+	nrLogger = log.New(&nrWriter, data.trackID, log.Default().Flags())
 }
 
 func getRelativePath(absolutePath string) string {
@@ -107,6 +111,7 @@ func LogPrint(typeLog string, identifier string, trace string, err string) {
 			"timestamp": currentTime.Unix(),
 		}
 		app.RecordCustomEvent("CustomLog", attributes)
+		nrLogger.Printf("[%s][%s][%s] - %s -> [%s] %s\n", formattedTime, typeLog, identifier, trace, typeLog, strings.TrimSpace(err))
 	}
 }
 
