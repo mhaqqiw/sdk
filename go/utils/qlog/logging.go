@@ -100,7 +100,6 @@ func LogPrint(typeLog string, identifier string, trace string, err string) {
 	if DisableTrace {
 		trace = ""
 	}
-	log.Printf("[%s][%s][%s] - %s -> [%s] %s\n", formattedTime, typeLog, identifier, trace, typeLog, strings.TrimSpace(err))
 	if app != nil {
 		attributes := map[string]interface{}{
 			"time":      formattedTime,
@@ -112,6 +111,8 @@ func LogPrint(typeLog string, identifier string, trace string, err string) {
 		}
 		app.RecordCustomEvent("CustomLog", attributes)
 		nrLogger.Printf("[%s][%s][%s] - %s -> [%s] %s\n", formattedTime, typeLog, identifier, trace, typeLog, strings.TrimSpace(err))
+	} else {
+		log.Printf("[%s][%s][%s] - %s -> [%s] %s\n", formattedTime, typeLog, identifier, trace, typeLog, strings.TrimSpace(err))
 	}
 }
 
