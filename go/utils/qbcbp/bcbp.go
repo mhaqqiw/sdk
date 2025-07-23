@@ -117,7 +117,7 @@ func ParseBCBP(data string) (BCBP, error) {
 		From:         strings.TrimSpace(data[30:33]),
 		To:           strings.TrimSpace(data[33:36]),
 		Airline:      strings.TrimSpace(data[36:38]),
-		FlightNumber: strings.TrimSpace(data[38:43]),
+		FlightNumber: sanitizeFlightNumber(data[38:43]),
 		Date:         date,
 		Class:        strings.TrimSpace(data[47:48]),
 		Seat:         strings.TrimSpace(data[48:52]),
@@ -125,4 +125,12 @@ func ParseBCBP(data string) (BCBP, error) {
 		Status:       strings.TrimSpace(data[57:58]),
 	}
 	return result, nil
+}
+
+func sanitizeFlightNumber(flightNumber string) string {
+	numberInt, err := strconv.Atoi(strings.TrimSpace(flightNumber))
+	if err != nil {
+		return flightNumber
+	}
+	return strconv.Itoa(numberInt)
 }
