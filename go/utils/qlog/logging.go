@@ -2,8 +2,10 @@ package qlog
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/newrelic/go-agent/v3/integrations/logcontext-v2/logWriter"
+	"github.com/newrelic/go-agent/v3/integrations/logcontext-v2/nrlogrus"
 	"log"
 	"os"
 	"runtime"
@@ -16,6 +18,7 @@ import (
 	"github.com/mhaqqiw/sdk/go/utils/qmodule"
 	"github.com/newrelic/go-agent/v3/integrations/nrgin"
 	"github.com/newrelic/go-agent/v3/newrelic"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -23,7 +26,9 @@ var (
 	DisableTrace bool
 	app          *newrelic.Application
 	nrLogger     *log.Logger
+	logrusLogger *logrus.Logger
 	TRACK_ID     = "track-id"
+	X_REAL_IP    = "X-Real-IP"
 )
 
 const (
@@ -42,6 +47,10 @@ func InitTracer(data LogConfig) {
 	if data.trackID != "" {
 		TRACK_ID = data.trackID
 	}
+	nrlogrusFormatter := nrlogrus.NewFormatter(app, &logrus.TextFormatter{})
+	logrusLogger = logrus.New()
+	logrusLogger.SetFormatter(nrlogrusFormatter)
+
 	nrWriter := logWriter.New(os.Stdout, data.NR)
 	nrLogger = log.New(&nrWriter, data.trackID, log.Default().Flags())
 }
@@ -90,9 +99,10 @@ func Trace(stackCallers ...int) string {
 	return "unable to get trace"
 }
 
-func LogPrint(typeLog string, identifier string, trace string, err string) {
+func LogPrint(typeLog string, identifier string, trace string, err string, realIP string) {
 	currentTime := time.Now()
 	formattedTime := currentTime.Format("2006-01-02 15:04:05 -0700")
+	ctx := context.WithValue(context.Background(), TRACK_ID, identifier)
 
 	if typeLog == "" {
 		typeLog = qconstant.ERROR
@@ -107,10 +117,29 @@ func LogPrint(typeLog string, identifier string, trace string, err string) {
 			"track_id":  identifier,
 			"trace":     trace,
 			"message":   err,
+			"x_real_ip": realIP,
 			"timestamp": currentTime.Unix(),
 		}
 		app.RecordCustomEvent("CustomLog", attributes)
-		nrLogger.Printf("[%s][%s][%s] - %s -> [%s] %s\n", formattedTime, typeLog, identifier, trace, typeLog, strings.TrimSpace(err))
+		//nrLogger.Printf("[%s][%s][%s] - %s -> [%s] %s\n", formattedTime, typeLog, identifier, trace, typeLog, strings.TrimSpace(err))
+		txn := app.StartTransaction(identifier)
+		logger := logrusLogger.WithFields(logrus.Fields{
+			"time":      formattedTime,
+			"type":      typeLog,
+			"track_id":  identifier,
+			"trace":     trace,
+			"message":   err,
+			"x_real_ip": realIP,
+			"timestamp": currentTime.Unix(),
+		}).WithTime(currentTime).WithError(errors.New(err)).WithContext(newrelic.NewContext(ctx, txn))
+		switch typeLog {
+		case qconstant.ERROR:
+			logger.Errorln(err)
+		case qconstant.INFO:
+			logger.Infoln(err)
+		case qconstant.DEBUG:
+			logger.Debugln(err)
+		}
 	} else {
 		log.Printf("[%s][%s][%s] - %s -> [%s] %s\n", formattedTime, typeLog, identifier, trace, typeLog, strings.TrimSpace(err))
 	}
@@ -125,7 +154,12 @@ func ErrorCtx(ctx context.Context, err error) {
 		trackID, _ = qmodule.GenerateUUIDV1()
 	}
 
-	LogPrint(qconstant.ERROR, trackID, trace, err.Error())
+	realIP, _ := ctx.Value(X_REAL_IP).(string)
+	if realIP == "" {
+		realIP = "-"
+	}
+
+	LogPrint(qconstant.ERROR, trackID, trace, err.Error(), realIP)
 }
 
 func InfoCtx(ctx context.Context, message string) {
@@ -137,7 +171,12 @@ func InfoCtx(ctx context.Context, message string) {
 		trackID, _ = qmodule.GenerateUUIDV1()
 	}
 
-	LogPrint(qconstant.INFO, trackID, trace, message)
+	realIP, _ := ctx.Value(X_REAL_IP).(string)
+	if realIP == "" {
+		realIP = "-"
+	}
+
+	LogPrint(qconstant.INFO, trackID, trace, message, realIP)
 }
 
 func DebugCtx(ctx context.Context, message string) {
@@ -149,28 +188,33 @@ func DebugCtx(ctx context.Context, message string) {
 		trackID, _ = qmodule.GenerateUUIDV1()
 	}
 
-	LogPrint(qconstant.DEBUG, trackID, trace, message)
+	realIP, _ := ctx.Value(X_REAL_IP).(string)
+	if realIP == "" {
+		realIP = "-"
+	}
+
+	LogPrint(qconstant.DEBUG, trackID, trace, message, realIP)
 }
 
 func Error(err error) {
 	trace := Trace(StackCallerExternal)
 	uuid, _ := qmodule.GenerateUUIDV1()
 
-	LogPrint(qconstant.ERROR, uuid, trace, err.Error())
+	LogPrint(qconstant.ERROR, uuid, trace, err.Error(), "-")
 }
 
 func Info(message string) {
 	trace := Trace(StackCallerExternal)
 	uuid, _ := qmodule.GenerateUUIDV1()
 
-	LogPrint(qconstant.INFO, uuid, trace, message)
+	LogPrint(qconstant.INFO, uuid, trace, message, "-")
 }
 
 func Debug(message string) {
 	trace := Trace(StackCallerExternal)
 	uuid, _ := qmodule.GenerateUUIDV1()
 
-	LogPrint(qconstant.DEBUG, uuid, trace, message)
+	LogPrint(qconstant.DEBUG, uuid, trace, message, "-")
 }
 
 func InitNRConfig(name string, key string, isForward bool) (*newrelic.Application, error) {
