@@ -145,7 +145,10 @@ func LogPrint(typeLog string, identifier string, trace string, err string, realI
 		case qconstant.DEBUG:
 			logger.Debugln(err)
 		}
-		logrusLogger.Formatter.Format(logger)
+		_, err := logrusLogger.Formatter.Format(logger)
+		if err != nil {
+			fmt.Println("Error logger: " + err.Error())
+		}
 	} else {
 		log.Printf("[%s][%s][%s] - %s -> [%s] %s\n", formattedTime, typeLog, identifier, trace, typeLog, strings.TrimSpace(err))
 	}
