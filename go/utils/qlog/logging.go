@@ -2,9 +2,8 @@ package qlog
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"github.com/newrelic/go-agent/v3/integrations/logcontext-v2/nrlogrus"
+	"github.com/newrelic/go-agent/v3/integrations/nrlogrus"
 	"log"
 	"os"
 	"runtime"
@@ -17,7 +16,6 @@ import (
 	"github.com/mhaqqiw/sdk/go/utils/qmodule"
 	"github.com/newrelic/go-agent/v3/integrations/nrgin"
 	"github.com/newrelic/go-agent/v3/newrelic"
-	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -25,7 +23,7 @@ var (
 	DisableTrace bool
 	app          *newrelic.Application
 	nrLogger     *log.Logger
-	logrusLogger *logrus.Logger
+	logrusLogger newrelic.Logger
 	TRACK_ID     = "track-id"
 	X_REAL_IP    = "X-Real-IP"
 )
@@ -39,7 +37,7 @@ const (
 type LogConfig struct {
 	NR      *newrelic.Application
 	trackID string
-	Logger  *logrus.Logger
+	Logger  newrelic.Logger
 }
 
 func InitTracer(data LogConfig) {
@@ -48,9 +46,7 @@ func InitTracer(data LogConfig) {
 		TRACK_ID = data.trackID
 	}
 	if data.Logger == nil {
-		nrlogrusFormatter := nrlogrus.NewFormatter(app, &logrus.TextFormatter{})
-		logrusLogger = logrus.New()
-		logrusLogger.SetFormatter(nrlogrusFormatter)
+		logrusLogger = nrlogrus.StandardLogger()
 	} else {
 		logrusLogger = data.Logger
 	}
@@ -106,7 +102,6 @@ func Trace(stackCallers ...int) string {
 func LogPrint(typeLog string, identifier string, trace string, err string, realIP string) {
 	currentTime := time.Now()
 	formattedTime := currentTime.Format("2006-01-02 15:04:05 -0700")
-	ctx := context.WithValue(context.Background(), TRACK_ID, identifier)
 
 	if typeLog == "" {
 		typeLog = qconstant.ERROR
@@ -126,27 +121,13 @@ func LogPrint(typeLog string, identifier string, trace string, err string, realI
 		}
 		app.RecordCustomEvent("CustomLog", attributes)
 		//nrLogger.Printf("[%s][%s][%s] - %s -> [%s] %s\n", formattedTime, typeLog, identifier, trace, typeLog, strings.TrimSpace(err))
-		txn := app.StartTransaction(identifier)
-		logger := logrusLogger.WithFields(logrus.Fields{
-			"time":      formattedTime,
-			"type":      typeLog,
-			"track_id":  identifier,
-			"trace":     trace,
-			"message":   err,
-			"x_real_ip": realIP,
-			"timestamp": currentTime.Unix(),
-		}).WithTime(currentTime).WithError(errors.New(err)).WithContext(newrelic.NewContext(ctx, txn))
 		switch typeLog {
 		case qconstant.ERROR:
-			logger.Errorln(err)
+			logrusLogger.Error(err, attributes)
 		case qconstant.INFO:
-			logger.Infoln(err)
+			logrusLogger.Info(err, attributes)
 		case qconstant.DEBUG:
-			logger.Debugln(err)
-		}
-		_, err := logrusLogger.Formatter.Format(logger)
-		if err != nil {
-			fmt.Println("Error logger: " + err.Error())
+			logrusLogger.Debug(err, attributes)
 		}
 	} else {
 		log.Printf("[%s][%s][%s] - %s -> [%s] %s\n", formattedTime, typeLog, identifier, trace, typeLog, strings.TrimSpace(err))
@@ -252,8 +233,4 @@ func Middleware(router *gin.Engine, app *newrelic.Application) {
 		}
 		ctx.Next()
 	})
-}
-
-func GetLogrusLogger() *logrus.Logger {
-	return logrusLogger
 }
