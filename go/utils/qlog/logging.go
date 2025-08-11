@@ -234,3 +234,7 @@ func Middleware(router *gin.Engine, app *newrelic.Application) {
 		ctx.Next()
 	})
 }
+
+func GetLogrusLogger() newrelic.Logger {
+	return logrusLogger
+}
