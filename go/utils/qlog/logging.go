@@ -40,6 +40,7 @@ const (
 type LogConfig struct {
 	NR      *newrelic.Application
 	trackID string
+	Logger  *logrus.Logger
 }
 
 func InitTracer(data LogConfig) {
@@ -47,9 +48,13 @@ func InitTracer(data LogConfig) {
 	if data.trackID != "" {
 		TRACK_ID = data.trackID
 	}
-	nrlogrusFormatter := nrlogrus.NewFormatter(app, &logrus.TextFormatter{})
-	logrusLogger = logrus.New()
-	logrusLogger.SetFormatter(nrlogrusFormatter)
+	if data.Logger == nil {
+		nrlogrusFormatter := nrlogrus.NewFormatter(app, &logrus.TextFormatter{})
+		logrusLogger = logrus.New()
+		logrusLogger.SetFormatter(nrlogrusFormatter)
+	} else {
+		logrusLogger = data.Logger
+	}
 
 	nrWriter := logWriter.New(os.Stdout, data.NR)
 	nrLogger = log.New(&nrWriter, data.trackID, log.Default().Flags())
@@ -140,6 +145,7 @@ func LogPrint(typeLog string, identifier string, trace string, err string, realI
 		case qconstant.DEBUG:
 			logger.Debugln(err)
 		}
+		logrusLogger.Formatter.Format(logger)
 	} else {
 		log.Printf("[%s][%s][%s] - %s -> [%s] %s\n", formattedTime, typeLog, identifier, trace, typeLog, strings.TrimSpace(err))
 	}
@@ -244,4 +250,8 @@ func Middleware(router *gin.Engine, app *newrelic.Application) {
 		}
 		ctx.Next()
 	})
+}
+
+func GetLogrusLogger() *logrus.Logger {
+	return logrusLogger
 }
