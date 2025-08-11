@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/newrelic/go-agent/v3/integrations/logcontext-v2/logWriter"
 	"github.com/newrelic/go-agent/v3/integrations/logcontext-v2/nrlogrus"
 	"log"
 	"os"
@@ -56,8 +55,8 @@ func InitTracer(data LogConfig) {
 		logrusLogger = data.Logger
 	}
 
-	nrWriter := logWriter.New(os.Stdout, data.NR)
-	nrLogger = log.New(&nrWriter, data.trackID, log.Default().Flags())
+	//nrWriter := logWriter.New(os.Stdout, data.NR)
+	//nrLogger = log.New(&nrWriter, data.trackID, log.Default().Flags())
 }
 
 func getRelativePath(absolutePath string) string {
