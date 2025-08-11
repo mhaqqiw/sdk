@@ -3,7 +3,6 @@ package qlog
 import (
 	"context"
 	"fmt"
-	"github.com/newrelic/go-agent/v3/integrations/nrlogrus"
 	"log"
 	"os"
 	"runtime"
@@ -45,14 +44,7 @@ func InitTracer(data LogConfig) {
 	if data.trackID != "" {
 		TRACK_ID = data.trackID
 	}
-	if data.Logger == nil {
-		logrusLogger = nrlogrus.StandardLogger()
-	} else {
-		logrusLogger = data.Logger
-	}
-
-	//nrWriter := logWriter.New(os.Stdout, data.NR)
-	//nrLogger = log.New(&nrWriter, data.trackID, log.Default().Flags())
+	logrusLogger = data.Logger
 }
 
 func getRelativePath(absolutePath string) string {
@@ -233,8 +225,4 @@ func Middleware(router *gin.Engine, app *newrelic.Application) {
 		}
 		ctx.Next()
 	})
-}
-
-func GetLogrusLogger() newrelic.Logger {
-	return logrusLogger
 }
