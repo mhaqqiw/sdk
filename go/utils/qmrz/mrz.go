@@ -451,3 +451,45 @@ func ParseMRZExpiry(expiry string) (time.Time, error) {
 	}
 	return ret, nil
 }
+
+func ParseMRZDOB(dob string) (time.Time, error) {
+	var ret time.Time
+	if len(dob) != 6 {
+		return ret, errors.New("invalid dob")
+	}
+
+	yearPart := dob[:2]
+	monthPart := dob[2:4]
+	dayPart := dob[4:6]
+
+	yy, err := strconv.Atoi(yearPart)
+	if err != nil {
+		return ret, err
+	}
+
+	mm, err := strconv.Atoi(monthPart)
+	if err != nil {
+		return ret, err
+	}
+
+	dd, err := strconv.Atoi(dayPart)
+	if err != nil {
+		return ret, err
+	}
+
+	// Guess century: MRZ DOB is usually 1900s or 2000s
+	// If year > current year (2-digit), assume 1900s, else 2000s
+	currentYear := time.Now().Year() % 100
+	century := 1900
+	if yy <= currentYear {
+		century = 2000
+	}
+	fullYear := century + yy
+
+	date := fmt.Sprintf("%04d-%02d-%02d", fullYear, mm, dd)
+	ret, err = time.Parse("2006-01-02", date)
+	if err != nil {
+		return ret, err
+	}
+	return ret, nil
+}
