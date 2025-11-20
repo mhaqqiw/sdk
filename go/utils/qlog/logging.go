@@ -3,7 +3,11 @@ package qlog
 import (
 	"context"
 	"fmt"
+	"io"
+
 	"github.com/newrelic/go-agent/v3/integrations/logcontext-v2/logWriter"
+	"gopkg.in/natefinch/lumberjack.v2"
+
 	"log"
 	"os"
 	"runtime"
@@ -35,15 +39,35 @@ const (
 type LogConfig struct {
 	NR      *newrelic.Application
 	trackID string
+	LogPath string
 }
 
 func InitTracer(data LogConfig) {
-	app = data.NR
-	if data.trackID != "" {
-		TRACK_ID = data.trackID
+	var fileLogger io.Writer
+	if data.LogPath != "" {
+		fileLogger = &lumberjack.Logger{
+			Filename:   data.LogPath,
+			MaxSize:    5,
+			MaxBackups: 5,
+			MaxAge:     28,
+			Compress:   true,
+		}
 	}
-	nrWriter := logWriter.New(os.Stdout, data.NR)
-	nrLogger = log.New(&nrWriter, data.trackID, log.Default().Flags())
+	if data.NR != nil {
+		app = data.NR
+		if data.trackID != "" {
+			TRACK_ID = data.trackID
+		}
+		nrWriter := logWriter.New(os.Stdout, data.NR)
+		nrLogger = log.New(&nrWriter, data.trackID, log.Default().Flags())
+		if fileLogger != nil {
+			nrLogger.SetOutput(fileLogger)
+		}
+		return
+	}
+	if fileLogger != nil {
+		log.SetOutput(fileLogger)
+	}
 }
 
 func getRelativePath(absolutePath string) string {
