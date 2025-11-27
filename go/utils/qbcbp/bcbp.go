@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 )
 
 type BCBP struct {
@@ -106,6 +107,11 @@ func ParseBCBP(data string) (BCBP, error) {
 		return result, err
 	}
 
+	flightNumber, err := sanitizeFlightNumber(data[38:43])
+	if err != nil {
+		return result, err
+	}
+
 	result = BCBP{
 		FormatCode:   strings.TrimSpace(data[0:1]),
 		TotalLeg:     strings.TrimSpace(data[1:2]),
@@ -117,7 +123,7 @@ func ParseBCBP(data string) (BCBP, error) {
 		From:         strings.TrimSpace(data[30:33]),
 		To:           strings.TrimSpace(data[33:36]),
 		Airline:      strings.TrimSpace(data[36:38]),
-		FlightNumber: sanitizeFlightNumber(data[38:43]),
+		FlightNumber: flightNumber,
 		Date:         date,
 		Class:        strings.TrimSpace(data[47:48]),
 		Seat:         strings.TrimSpace(data[48:52]),
@@ -127,10 +133,21 @@ func ParseBCBP(data string) (BCBP, error) {
 	return result, nil
 }
 
-func sanitizeFlightNumber(flightNumber string) string {
-	numberInt, err := strconv.Atoi(strings.TrimSpace(flightNumber))
-	if err != nil {
-		return flightNumber
+func sanitizeFlightNumber(flightNumber string) (string, error) {
+	flightNumber = strings.TrimSpace(flightNumber)
+	if flightNumber != "" && !unicode.IsNumber(rune(flightNumber[0])) {
+		return flightNumber, errors.New("invalid Flight Number")
 	}
-	return strconv.Itoa(numberInt)
+	for i, char := range flightNumber {
+		if unicode.IsNumber(char) {
+			num, err := strconv.Atoi(string(char))
+			if err != nil {
+				return flightNumber, err
+			}
+			if num > 0 {
+				return flightNumber[i:], nil
+			}
+		}
+	}
+	return flightNumber, errors.New("invalid Flight Number")
 }
