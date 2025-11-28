@@ -104,12 +104,19 @@ func ParseBCBP(data string) (BCBP, error) {
 
 	date, err := julianDayToGregorian(strings.TrimSpace(data[44:47]))
 	if err != nil {
-		return result, err
+		return result, errors.New("invalid BCBP (Code: 3)")
+	}
+
+	airline := strings.TrimSpace(data[36:38])
+	for _, char := range airline {
+		if !unicode.IsLetter(char) {
+			return result, errors.New("invalid BCBP (Code: 4)")
+		}
 	}
 
 	flightNumber, err := sanitizeFlightNumber(data[38:43])
 	if err != nil {
-		return result, err
+		return result, errors.New("invalid BCBP (Code: 5)")
 	}
 
 	result = BCBP{
@@ -122,7 +129,7 @@ func ParseBCBP(data string) (BCBP, error) {
 		PnrCode:      strings.TrimSpace(data[23:30]),
 		From:         strings.TrimSpace(data[30:33]),
 		To:           strings.TrimSpace(data[33:36]),
-		Airline:      strings.TrimSpace(data[36:38]),
+		Airline:      airline,
 		FlightNumber: flightNumber,
 		Date:         date,
 		Class:        strings.TrimSpace(data[47:48]),
