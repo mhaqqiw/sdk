@@ -154,6 +154,8 @@ func sanitizeFlightNumber(flightNumber string) (string, error) {
 			if num > 0 {
 				return flightNumber[i:], nil
 			}
+		} else if !unicode.IsLetter(char) {
+			return flightNumber, errors.New("invalid Flight Number")
 		}
 	}
 	return flightNumber, errors.New("invalid Flight Number")
