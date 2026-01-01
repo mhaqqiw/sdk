@@ -61,7 +61,8 @@ func julianDayToGregorian(julianDay string) (string, error) {
 	if err != nil {
 		return "", errors.New("invalid Julian day")
 	}
-	return time.Date(2025, 1, day, 0, 0, 0, 0, time.UTC).Format("2006-01-02"), nil
+	year := time.Now().Year()
+	return time.Date(year, 1, day, 0, 0, 0, 0, time.UTC).Format("2006-01-02"), nil
 }
 
 func GenerateBCBP(lastName, firstName, dateOfFlight, fromAirport, toAirport string) (string, error) {
