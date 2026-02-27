@@ -23,6 +23,8 @@ const VISA_B = "MRV-B"
 type Passport struct {
 	Country            string `json:"country"`
 	Name               string `json:"name"`
+	FirstName          string `json:"first_name"`
+	LastName           string `json:"last_name"`
 	DocNumber          string `json:"doc_number"`
 	HashDocNumber      string `json:"hash_doc_number"`
 	Nationality        string `json:"nationality"`
@@ -278,7 +280,14 @@ func PassportMRZ(data []string, ret MRZ) (MRZ, error) {
 	ret.DocumentType = clear(data[0][:2])
 	ret.DocumentClass = TD3
 	ret.Passport.Country = clear(data[0][2:5])
-	ret.Passport.Name = clear(data[0][5:])
+	parts := strings.SplitN(data[0][5:], "<<", 2)
+	if len(parts) > 0 {
+		ret.Passport.LastName = clear(parts[0])
+	}
+	if len(parts) > 1 {
+		ret.Passport.FirstName = clear(parts[1])
+	}
+	ret.Passport.Name = strings.TrimSpace(ret.Passport.FirstName + " " + ret.Passport.LastName)
 	data[1] = strings.TrimSpace(data[1])
 	if len(data[1]) < TD3_CHAR_LEN {
 		return ret, fmt.Errorf("Invalid MRZ in line 2 (Code: 3)")
