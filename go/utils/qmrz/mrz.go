@@ -224,6 +224,9 @@ func GenerateMRZ(mrzType string, mrz MRZ) (string, error) {
 }
 
 func ParseMRZ(mrz string) (ret MRZ, err error) {
+	if len(mrz) == 0 {
+		return ret, errors.New("Invalid MRZ (Code: 1)")
+	}
 	arr := strings.Split(strings.TrimSpace(mrz), "\n")
 	if len(arr) < 1 {
 		return ret, fmt.Errorf("Invalid MRZ (Code: 1)")
