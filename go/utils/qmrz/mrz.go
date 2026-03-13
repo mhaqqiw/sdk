@@ -233,6 +233,10 @@ func ParseMRZ(mrz string) (ret MRZ, err error) {
 
 	}
 
+	if len(arr[0]) == 0 {
+		return ret, errors.New("Empty MRZ")
+	}
+
 	docType := rune(arr[0][0])
 	charLen := len(strings.TrimSpace(arr[0]))
 
