@@ -509,3 +509,110 @@ func ParseMRZDOB(dob string) (time.Time, error) {
 	}
 	return ret, nil
 }
+
+func GenerateMRZPassport(p Passport) (string, string, error) {
+	// Parse name
+	surname, given := parseName(p.Name)
+
+	// Line 1
+	line1 := fmt.Sprintf("P<%s%s<<%s",
+		formatField(p.Country, 3),
+		formatNameGen(surname),
+		formatNameGen(given),
+	)
+
+	line1 = padRight(line1, 44, '<')
+
+	// Date conversion
+	dob := formatDate(p.DOB)
+
+	exp := formatDate(p.ExpiredDate)
+
+	docNumber := formatField(p.DocNumber, 9)
+	nationality := formatField(p.Nationality, 3)
+	sex := strings.ToUpper(string(p.Sex[0]))
+
+	// Checksums
+	docCheck := checkDigit(docNumber)
+	dobCheck := checkDigit(dob)
+	expCheck := checkDigit(exp)
+
+	optional := strings.Repeat("<", 14)
+
+	line2 := fmt.Sprintf("%s%d%s%s%d%s%s%d%s",
+		docNumber,
+		docCheck,
+		nationality,
+		dob,
+		dobCheck,
+		sex,
+		exp,
+		expCheck,
+		optional,
+	)
+
+	// Final check digit
+	finalCheck := checkDigit(line2)
+	line2 = fmt.Sprintf("%s%d", line2, finalCheck)
+
+	line2 = padRight(line2, 44, '<')
+
+	return line1, line2, nil
+}
+
+func parseName(name string) (string, string) {
+	parts := strings.Fields(strings.ToUpper(name))
+	if len(parts) == 0 {
+		return "", ""
+	}
+	if len(parts) == 1 {
+		return parts[0], ""
+	}
+	return parts[0], strings.Join(parts[1:], "<")
+}
+
+func formatNameGen(s string) string {
+	s = strings.ToUpper(s)
+	s = strings.ReplaceAll(s, " ", "<")
+	return filterMRZChars(s)
+}
+
+func formatField(s string, max int) string {
+	s = strings.ToUpper(s)
+	s = filterMRZChars(s)
+	if len(s) > max {
+		return s[:max]
+	}
+	return padRight(s, max, '<')
+}
+
+func padRight(s string, length int, pad rune) string {
+	for len(s) < length {
+		s += string(pad)
+	}
+	return s
+}
+
+func filterMRZChars(s string) string {
+	var result strings.Builder
+	for _, r := range s {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			result.WriteRune(r)
+		} else {
+			result.WriteRune('<')
+		}
+	}
+	return result.String()
+}
+
+func checkDigit(input string) int {
+	weights := []int{7, 3, 1}
+	total := 0
+
+	for i, c := range input {
+		value := charValue(c)
+		total += value * weights[i%3]
+	}
+
+	return total % 10
+}
