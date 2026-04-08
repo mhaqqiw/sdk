@@ -45,6 +45,7 @@ type LogConfig struct {
 
 func InitTracer(data LogConfig) {
 	var fileLogger io.Writer
+	var stdLogger io.Writer = os.Stdout
 	if data.LogPath != "" {
 		fileLoggerConfig := &lumberjack.Logger{
 			Filename:   data.LogPath,
@@ -63,21 +64,18 @@ func InitTracer(data LogConfig) {
 		}
 		fileLogger = fileLoggerConfig
 	}
+	if fileLogger != nil {
+		stdLogger = io.MultiWriter(os.Stdout, fileLogger)
+	}
 	if data.NR != nil {
 		app = data.NR
 		if data.trackID != "" {
 			TRACK_ID = data.trackID
 		}
-		nrWriter := logWriter.New(os.Stdout, data.NR)
+		nrWriter := logWriter.New(stdLogger, data.NR)
 		nrLogger = log.New(&nrWriter, data.trackID, log.Default().Flags())
-		if fileLogger != nil {
-			nrLogger.SetOutput(fileLogger)
-		}
-		return
 	}
-	if fileLogger != nil {
-		log.SetOutput(fileLogger)
-	}
+	log.SetOutput(stdLogger)
 }
 
 func getRelativePath(absolutePath string) string {
