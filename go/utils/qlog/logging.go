@@ -37,37 +37,45 @@ const (
 )
 
 type LogConfig struct {
-	NR      *newrelic.Application
-	trackID string
-	LogPath string
+	NR            *newrelic.Application
+	trackID       string
+	LogPath       string
+	FileLogConfig *lumberjack.Logger
 }
 
 func InitTracer(data LogConfig) {
 	var fileLogger io.Writer
+	var stdLogger io.Writer = os.Stdout
 	if data.LogPath != "" {
-		fileLogger = &lumberjack.Logger{
+		fileLoggerConfig := &lumberjack.Logger{
 			Filename:   data.LogPath,
 			MaxSize:    5,
 			MaxBackups: 5,
 			MaxAge:     28,
-			Compress:   true,
+			Compress:   false,
+			LocalTime:  true,
 		}
+		if data.FileLogConfig != nil {
+			fileLoggerConfig.MaxSize = data.FileLogConfig.MaxSize
+			fileLoggerConfig.MaxBackups = data.FileLogConfig.MaxBackups
+			fileLoggerConfig.MaxAge = data.FileLogConfig.MaxAge
+			fileLoggerConfig.Compress = data.FileLogConfig.Compress
+			fileLoggerConfig.LocalTime = data.FileLogConfig.LocalTime
+		}
+		fileLogger = fileLoggerConfig
+	}
+	if fileLogger != nil {
+		stdLogger = io.MultiWriter(os.Stdout, fileLogger)
 	}
 	if data.NR != nil {
 		app = data.NR
 		if data.trackID != "" {
 			TRACK_ID = data.trackID
 		}
-		nrWriter := logWriter.New(os.Stdout, data.NR)
+		nrWriter := logWriter.New(stdLogger, data.NR)
 		nrLogger = log.New(&nrWriter, data.trackID, log.Default().Flags())
-		if fileLogger != nil {
-			nrLogger.SetOutput(fileLogger)
-		}
-		return
 	}
-	if fileLogger != nil {
-		log.SetOutput(fileLogger)
-	}
+	log.SetOutput(stdLogger)
 }
 
 func getRelativePath(absolutePath string) string {
