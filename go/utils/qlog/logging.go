@@ -37,21 +37,31 @@ const (
 )
 
 type LogConfig struct {
-	NR      *newrelic.Application
-	trackID string
-	LogPath string
+	NR            *newrelic.Application
+	trackID       string
+	LogPath       string
+	FileLogConfig *lumberjack.Logger
 }
 
 func InitTracer(data LogConfig) {
 	var fileLogger io.Writer
 	if data.LogPath != "" {
-		fileLogger = &lumberjack.Logger{
+		fileLoggerConfig := &lumberjack.Logger{
 			Filename:   data.LogPath,
 			MaxSize:    5,
 			MaxBackups: 5,
 			MaxAge:     28,
-			Compress:   true,
+			Compress:   false,
+			LocalTime:  true,
 		}
+		if data.FileLogConfig != nil {
+			fileLoggerConfig.MaxSize = data.FileLogConfig.MaxSize
+			fileLoggerConfig.MaxBackups = data.FileLogConfig.MaxBackups
+			fileLoggerConfig.MaxAge = data.FileLogConfig.MaxAge
+			fileLoggerConfig.Compress = data.FileLogConfig.Compress
+			fileLoggerConfig.LocalTime = data.FileLogConfig.LocalTime
+		}
+		fileLogger = fileLoggerConfig
 	}
 	if data.NR != nil {
 		app = data.NR
