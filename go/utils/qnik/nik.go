@@ -3,8 +3,12 @@ package qnik
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"maps"
+	"math/rand"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"time"
 	"unicode"
@@ -109,6 +113,58 @@ func Init(opts ...NIKOption) error {
 
 	initializedNIKMap = true
 	return nil
+}
+
+func (i *IDCardData) GenerateNIK() (string, []string, error) {
+	generatedList := make([]string, 0)
+
+	if i.NIK != "" {
+		return i.NIK, generatedList, nil
+	}
+
+	district := ""
+	if i.District != "" {
+		for n, d := range districtNIKMap {
+			if d == i.District {
+				district = n
+			}
+		}
+	} else {
+		district = getRandomDistrict()
+		generatedList = append(generatedList, "district: "+district)
+	}
+
+	dob := ""
+	gender := ""
+	if !i.DOB.IsZero() {
+		dob = i.DOB.Format("020106")
+		if i.Gender != "" {
+			gender = i.Gender
+			dob = addDOBPrefix(gender, dob)
+		} else {
+			gender = getRandomGender()
+			dob = addDOBPrefix(gender, dob)
+			generatedList = append(generatedList, "gender: "+gender)
+		}
+	} else {
+		dob = getRandomDOB()
+		if i.Gender != "" {
+			gender = i.Gender
+			dob = addDOBPrefix(gender, dob)
+		} else {
+			gender = getRandomGender()
+			dob = addDOBPrefix(gender, dob)
+			generatedList = append(generatedList, "gender: "+gender)
+		}
+		generatedList = append(generatedList, "dob: "+dob)
+	}
+
+	uniqueCode := getRandomUniqueCode()
+	generatedList = append(generatedList, "unique: "+uniqueCode)
+
+	nik := fmt.Sprintf("%s%s%s", district, dob, uniqueCode)
+
+	return nik, generatedList, nil
 }
 
 func (i *IDCardData) ParseNIK(nik string) error {
@@ -236,4 +292,49 @@ func parseNIKGender(data string) (string, error) {
 		return "F", nil
 	}
 	return "M", nil
+}
+
+func getRandomDistrict() string {
+	n := rand.Intn(len(districtNIKMap))
+
+	districts := slices.Collect(maps.Keys(districtNIKMap))
+
+	return districts[n]
+}
+
+func getRandomDOB() string {
+	now := time.Now().Unix()
+
+	// rand.Int63n(now) returns a random int64 from [0, now)
+	randomUnix := rand.Int63n(now)
+
+	randomTime := time.Unix(randomUnix, 0)
+
+	return randomTime.Format("020106")
+}
+
+func getRandomGender() string {
+	gender := rand.Intn(2) == 0
+	if gender {
+		return "M"
+	}
+	return "F"
+}
+
+func getRandomUniqueCode() string {
+	code := rand.Intn(9) + 1
+	return "000" + strconv.Itoa(code)
+}
+
+func addDOBPrefix(gender, dob string) string {
+	if len(dob) < 6 {
+		return dob
+	}
+	if gender == "F" {
+		prefix, _ := strconv.Atoi(string(dob[0]))
+		prefix += 4
+		prefixStr := strconv.Itoa(prefix)
+		dob = prefixStr + dob[1:]
+	}
+	return dob
 }
