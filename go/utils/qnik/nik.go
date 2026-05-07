@@ -18,9 +18,9 @@ import (
 )
 
 var (
-	stateNIKMap       map[string]string
-	cityNIKMap        map[string]string
-	districtNIKMap    map[string]string
+	stateNIKMap       = make(map[string]string)
+	cityNIKMap        = make(map[string]string)
+	districtNIKMap    = make(map[string]string)
 	initializedNIKMap bool
 )
 
