@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"time"
@@ -17,9 +18,9 @@ import (
 )
 
 var (
-	stateNIKMap       map[string]string
-	cityNIKMap        map[string]string
-	districtNIKMap    map[string]string
+	stateNIKMap       = make(map[string]string)
+	cityNIKMap        = make(map[string]string)
+	districtNIKMap    = make(map[string]string)
 	initializedNIKMap bool
 )
 
@@ -34,7 +35,8 @@ type IDCardData struct {
 	Subdistrict string    `json:"subdistrict" db:"subdistrict"`
 	Address     string    `json:"address" db:"address"`
 	Gender      string    `json:"gender" db:"gender"`
-	DOB         time.Time `json:"dob" db:"dob"`
+	DOB         time.Time `json:"dob" db:"-"`
+	DOBStr      string    `json:"-" db:"dob"`
 	ImageID     string    `json:"image_id" db:"image_id"`
 	ImageType   int       `json:"image_type" db:"image_type"`
 	CreatedAt   time.Time `json:"created_at" db:"created_at"`
@@ -63,15 +65,16 @@ func WithPath(path string) NIKOption {
 }
 
 func Init(opts ...NIKOption) error {
+	_, b, _, _ := runtime.Caller(0)
 	opt := &option{
-		sdkPath: filepath.Join("files/etc/sdk"),
+		sdkPath: filepath.Join(filepath.Dir(b), "../../../files/etc/sdk/"),
 	}
 
 	for _, optFunc := range opts {
 		optFunc(opt)
 	}
 
-	stateFile, err := os.ReadFile(opt.sdkPath + "state.json")
+	stateFile, err := os.ReadFile(filepath.Join(opt.sdkPath, "state.json"))
 	if err != nil {
 		return err
 	}
@@ -84,7 +87,7 @@ func Init(opts ...NIKOption) error {
 	for _, state := range states {
 		stateNIKMap[state.Code] = state.Name
 	}
-	cityFile, err := os.ReadFile(opt.sdkPath + "city.json")
+	cityFile, err := os.ReadFile(filepath.Join(opt.sdkPath, "city.json"))
 	if err != nil {
 		return err
 	}
@@ -98,7 +101,7 @@ func Init(opts ...NIKOption) error {
 		cityNIKMap[city.Code] = city.Name
 	}
 
-	districtFile, err := os.ReadFile(opt.sdkPath + "district.json")
+	districtFile, err := os.ReadFile(filepath.Join(opt.sdkPath, "district.json"))
 	if err != nil {
 		return err
 	}
@@ -217,6 +220,7 @@ func (i *IDCardData) ParseNIK(nik string) error {
 		return errors.New("Invalid NIK (Code: 6)")
 	}
 	i.DOB = dob
+	i.DOBStr = dob.Format(time.DateOnly)
 
 	gender, err := parseNIKGender(nik[6:8])
 	if err != nil {
