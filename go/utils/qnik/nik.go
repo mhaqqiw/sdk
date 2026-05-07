@@ -71,7 +71,7 @@ func Init(opts ...NIKOption) error {
 		optFunc(opt)
 	}
 
-	stateFile, err := os.ReadFile(opt.sdkPath + "state.json")
+	stateFile, err := os.ReadFile(filepath.Join(opt.sdkPath, "state.json"))
 	if err != nil {
 		return err
 	}
@@ -84,7 +84,7 @@ func Init(opts ...NIKOption) error {
 	for _, state := range states {
 		stateNIKMap[state.Code] = state.Name
 	}
-	cityFile, err := os.ReadFile(opt.sdkPath + "city.json")
+	cityFile, err := os.ReadFile(filepath.Join(opt.sdkPath, "city.json"))
 	if err != nil {
 		return err
 	}
@@ -98,7 +98,7 @@ func Init(opts ...NIKOption) error {
 		cityNIKMap[city.Code] = city.Name
 	}
 
-	districtFile, err := os.ReadFile(opt.sdkPath + "district.json")
+	districtFile, err := os.ReadFile(filepath.Join(opt.sdkPath, "district.json"))
 	if err != nil {
 		return err
 	}
