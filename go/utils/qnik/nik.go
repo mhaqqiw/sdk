@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"time"
@@ -63,8 +64,9 @@ func WithPath(path string) NIKOption {
 }
 
 func Init(opts ...NIKOption) error {
+	_, b, _, _ := runtime.Caller(0)
 	opt := &option{
-		sdkPath: filepath.Join("files/etc/sdk/"),
+		sdkPath: filepath.Join(filepath.Dir(b), "../../../files/etc/sdk/"),
 	}
 
 	for _, optFunc := range opts {
