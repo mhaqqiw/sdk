@@ -64,7 +64,7 @@ func WithPath(path string) NIKOption {
 
 func Init(opts ...NIKOption) error {
 	opt := &option{
-		sdkPath: filepath.Join("files/etc/sdk"),
+		sdkPath: filepath.Join("files/etc/sdk/"),
 	}
 
 	for _, optFunc := range opts {
