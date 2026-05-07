@@ -35,7 +35,8 @@ type IDCardData struct {
 	Subdistrict string    `json:"subdistrict" db:"subdistrict"`
 	Address     string    `json:"address" db:"address"`
 	Gender      string    `json:"gender" db:"gender"`
-	DOB         time.Time `json:"dob" db:"dob"`
+	DOB         time.Time `json:"dob" db:"-"`
+	DOBStr      string    `json:"-" db:"dob"`
 	ImageID     string    `json:"image_id" db:"image_id"`
 	ImageType   int       `json:"image_type" db:"image_type"`
 	CreatedAt   time.Time `json:"created_at" db:"created_at"`
@@ -219,6 +220,7 @@ func (i *IDCardData) ParseNIK(nik string) error {
 		return errors.New("Invalid NIK (Code: 6)")
 	}
 	i.DOB = dob
+	i.DOBStr = dob.Format(time.DateOnly)
 
 	gender, err := parseNIKGender(nik[6:8])
 	if err != nil {
