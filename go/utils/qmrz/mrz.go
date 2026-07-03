@@ -64,6 +64,8 @@ type MRZ struct {
 		AdditionalInfo2 string `json:"additional_info_2"`
 		FinalHash       string `json:"final_hash"`
 		Name            string `json:"name"`
+		FirstName       string `json:"first_name"`
+		LastName        string `json:"last_name"`
 		ExpectedHash    struct {
 			IsValid         bool   `json:"is_valid"`
 			HashDocNumber   string `json:"hash_doc_number"`
@@ -251,10 +253,13 @@ func ParseMRZ(mrz string) (ret MRZ, err error) {
 				arr = splitByN(arr[0], TD2_CHAR_LEN)
 			}
 		}
-		if charLen == TD1_CHAR_LEN {
+		switch len(arr) {
+		case 3:
 			return TD1MRZ(arr, ret)
-		} else {
+		case 2:
 			return TD2MRZ(arr, ret)
+		default:
+			return ret, fmt.Errorf("Invalid MRZ line count")
 		}
 	case 'P':
 		if len(arr[0]) > TD3_CHAR_LEN {
@@ -280,6 +285,9 @@ func ParseMRZ(mrz string) (ret MRZ, err error) {
 }
 
 func PassportMRZ(data []string, ret MRZ) (MRZ, error) {
+	if len(data) < 2 {
+		return ret, fmt.Errorf("Invalid MRZ (Code: 3)")
+	}
 	data[0] = strings.TrimSpace(data[0])
 	if len(data[0]) < TD3_CHAR_LEN {
 		return ret, fmt.Errorf("Invalid MRZ in line 1 (Code: 3)")
@@ -328,7 +336,7 @@ func TD1MRZ(data []string, ret MRZ) (MRZ, error) {
 	ret.TD1.HashDocNumber = clear(data[0][14:15])
 	ret.TD1.AdditionalInfo1 = clear(data[0][15:])
 	data[1] = strings.TrimSpace(data[1])
-	if len(data[0]) < TD1_CHAR_LEN {
+	if len(data[1]) < TD1_CHAR_LEN {
 		return ret, fmt.Errorf("Invalid MRZ in line 2 (Code: 3)")
 	}
 	ret.TD1.DOB = clear(data[1][:6])
@@ -343,7 +351,14 @@ func TD1MRZ(data []string, ret MRZ) (MRZ, error) {
 	if len(data[2]) < TD1_CHAR_LEN {
 		return ret, fmt.Errorf("Invalid MRZ in line 3 (Code: 3)")
 	}
-	ret.TD2.Name = clear(data[2])
+	parts := strings.SplitN(data[2], "<<", 2)
+	if len(parts) > 0 {
+		ret.TD1.LastName = clear(parts[0])
+	}
+	if len(parts) > 1 {
+		ret.TD1.FirstName = clear(parts[1])
+	}
+	ret.TD1.Name = strings.TrimSpace(ret.TD1.FirstName + " " + ret.TD1.LastName)
 	return ret, nil
 }
 func TD2MRZ(data []string, ret MRZ) (MRZ, error) {
