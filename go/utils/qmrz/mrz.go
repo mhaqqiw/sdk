@@ -43,6 +43,9 @@ type Passport struct {
 		HashExpiredDate    string `json:"hash_expired_date"`
 		HashPersonalNumber string `json:"hash_personal_number"`
 		FinalHash          string `json:"final_hash"`
+		DOBValid           bool   `json:"dob_valid"`
+		ExpiredDateValid   bool   `json:"expired_date_valid"`
+		NameValid          bool   `json:"name_valid"`
 	} `json:"expected_hash"`
 }
 
@@ -67,11 +70,14 @@ type MRZ struct {
 		FirstName       string `json:"first_name"`
 		LastName        string `json:"last_name"`
 		ExpectedHash    struct {
-			IsValid         bool   `json:"is_valid"`
-			HashDocNumber   string `json:"hash_doc_number"`
-			HashDOB         string `json:"hash_dob"`
-			HashExpiredDate string `json:"hash_expired_date"`
-			FinalHash       string `json:"final_hash"`
+			IsValid          bool   `json:"is_valid"`
+			HashDocNumber    string `json:"hash_doc_number"`
+			HashDOB          string `json:"hash_dob"`
+			HashExpiredDate  string `json:"hash_expired_date"`
+			FinalHash        string `json:"final_hash"`
+			DOBValid         bool   `json:"dob_valid"`
+			ExpiredDateValid bool   `json:"expired_date_valid"`
+			NameValid        bool   `json:"name_valid"`
 		} `json:"expected_hash"`
 	} `json:"td1"`
 	TD2 struct {
@@ -88,11 +94,14 @@ type MRZ struct {
 		AdditionalInfo  string `json:"additional_info"`
 		FinalHash       string `json:"final_hash"`
 		ExpectedHash    struct {
-			IsValid         bool   `json:"is_valid"`
-			HashDocNumber   string `json:"hash_doc_number"`
-			HashDOB         string `json:"hash_dob"`
-			HashExpiredDate string `json:"hash_expired_date"`
-			FinalHash       string `json:"final_hash"`
+			IsValid          bool   `json:"is_valid"`
+			HashDocNumber    string `json:"hash_doc_number"`
+			HashDOB          string `json:"hash_dob"`
+			HashExpiredDate  string `json:"hash_expired_date"`
+			FinalHash        string `json:"final_hash"`
+			DOBValid         bool   `json:"dob_valid"`
+			ExpiredDateValid bool   `json:"expired_date_valid"`
+			NameValid        bool   `json:"name_valid"`
 		} `json:"expected_hash"`
 	} `json:"td2"`
 	VISAA struct {
@@ -153,7 +162,12 @@ func formatName(name string) string {
 	surname := parts[0]
 	givenNames := strings.Join(parts[1:], "<")
 	formatted := surname + "<<" + givenNames
-	return strings.ReplaceAll(formatted, " ", "<")
+	formatted = strings.ReplaceAll(formatted, " ", "<")
+	// ICAO 9303 restricts MRZ names to A-Z and the filler '<'. Any other
+	// character (accents, punctuation, digits) must be transliterated or
+	// dropped before it reaches the printed line, otherwise the field is
+	// invalid per spec even though it will still "fit" in the slot.
+	return filterMRZChars(formatted)
 }
 
 func formatDate(dateStr string) string {
@@ -184,6 +198,73 @@ func computeCheckDigit(input string) int {
 		sum += charValue(r) * weights[i%3]
 	}
 	return sum % 10
+}
+
+// verifyCheckDigit recomputes the ICAO 9303 check digit for `field` and
+// compares it against the single-character `checkChar` actually printed
+// in the MRZ. A non-digit check character (e.g. '<' used when the field
+// is unused) is treated as invalid rather than silently passing.
+func verifyCheckDigit(field string, checkChar string) bool {
+	if len(checkChar) != 1 {
+		return false
+	}
+	actual, err := strconv.Atoi(checkChar)
+	if err != nil {
+		return false
+	}
+	return computeCheckDigit(field) == actual
+}
+
+// isValidICAODate reports whether a raw MRZ YYMMDD string is a real
+// calendar date. MRZ dates carry no century, so both the 1900s and 2000s
+// interpretations are tried; the date is considered valid if either
+// resolves to a real day. This only checks calendar validity, not
+// business-logic sense (e.g. an expiry date in the past).
+func isValidICAODate(dateStr string) bool {
+	if len(dateStr) != 6 {
+		return false
+	}
+	for _, c := range dateStr {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	mm, err := strconv.Atoi(dateStr[2:4])
+	if err != nil || mm < 1 || mm > 12 {
+		return false
+	}
+	dd, err := strconv.Atoi(dateStr[4:6])
+	if err != nil || dd < 1 || dd > 31 {
+		return false
+	}
+	yy, err := strconv.Atoi(dateStr[:2])
+	if err != nil {
+		return false
+	}
+	for _, century := range []int{1900, 2000} {
+		full := century + yy
+		date := fmt.Sprintf("%04d-%02d-%02d", full, mm, dd)
+		if _, err := time.Parse("2006-01-02", date); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
+// isValidICAOName checks that a raw (unclear()'d) MRZ name field uses only
+// the ICAO 9303 allowed character set: A-Z and the filler '<'. This must be
+// run on the raw field, before clear() strips fillers and turns them into
+// spaces, otherwise a field full of stray characters would look fine.
+func isValidICAOName(raw string) bool {
+	if raw == "" {
+		return false
+	}
+	for _, r := range raw {
+		if !(r >= 'A' && r <= 'Z') && r != '<' {
+			return false
+		}
+	}
+	return true
 }
 
 func GenerateMRZ(mrzType string, mrz MRZ) (string, error) {
@@ -221,7 +302,16 @@ func GenerateMRZ(mrzType string, mrz MRZ) (string, error) {
 		personalNumber +
 		fmt.Sprintf("%d", personalNumberCheck)
 
-	compositeCheck := computeCheckDigit(line2Body)
+	compositeCheckField := passportNumber +
+		fmt.Sprintf("%d", passportNumberCheck) +
+		dob +
+		fmt.Sprintf("%d", dobCheck) +
+		expiry +
+		fmt.Sprintf("%d", expiryCheck) +
+		personalNumber +
+		fmt.Sprintf("%d", personalNumberCheck)
+
+	compositeCheck := computeCheckDigit(compositeCheckField)
 	line2 := line2Body + fmt.Sprintf("%d", compositeCheck)
 
 	return line1 + "\n" + line2, nil
@@ -284,6 +374,12 @@ func ParseMRZ(mrz string) (ret MRZ, err error) {
 	}
 }
 
+// PassportMRZ parses a TD3 (passport) MRZ and verifies every embedded
+// check digit against the ICAO 9303 algorithm (weights 7,3,1 repeating,
+// A-Z => 10-35, '<' => 0). The composite check digit (line 2, position 43)
+// covers doc number+check, DOB+check, expiry+check, and personal number+
+// check, concatenated in that order — nationality and sex are excluded,
+// per spec.
 func PassportMRZ(data []string, ret MRZ) (MRZ, error) {
 	if len(data) < 2 {
 		return ret, fmt.Errorf("Invalid MRZ (Code: 3)")
@@ -295,7 +391,9 @@ func PassportMRZ(data []string, ret MRZ) (MRZ, error) {
 	ret.DocumentType = clear(data[0][:2])
 	ret.DocumentClass = TD3
 	ret.Passport.Country = clear(data[0][2:5])
-	parts := strings.SplitN(data[0][5:], "<<", 2)
+	rawName := data[0][5:44]
+	ret.Passport.ExpectedHash.NameValid = isValidICAOName(rawName)
+	parts := strings.SplitN(rawName, "<<", 2)
 	if len(parts) > 0 {
 		ret.Passport.LastName = clear(parts[0])
 	}
@@ -307,20 +405,46 @@ func PassportMRZ(data []string, ret MRZ) (MRZ, error) {
 	if len(data[1]) < TD3_CHAR_LEN {
 		return ret, fmt.Errorf("Invalid MRZ in line 2 (Code: 3)")
 	}
-	ret.Passport.DocNumber = clear(data[1][:9])
-	ret.Passport.HashDocNumber = clear(data[1][9:10])
-	ret.Passport.Nationality = clear(data[1][10:13])
-	ret.Passport.DOB = clear(data[1][13:19])
-	ret.Passport.HashDOB = clear(data[1][19:20])
-	ret.Passport.Sex = clear(data[1][20:21])
-	ret.Passport.ExpiredDate = clear(data[1][21:27])
-	ret.Passport.HashExpiredDate = clear(data[1][27:28])
-	ret.Passport.PersonalNumber = clear(data[1][28:42])
-	ret.Passport.HashPersonalNumber = clear(data[1][42:43])
-	ret.Passport.FinalHash = clear(data[1][43:])
+	line2 := data[1]
+	docNumberField := line2[:9]
+	dobField := line2[13:19]
+	expiryField := line2[21:27]
+	personalNumberField := line2[28:42]
+	compositeField := docNumberField + line2[9:10] + dobField + line2[19:20] + expiryField + line2[27:28] + personalNumberField + line2[42:43]
+
+	ret.Passport.DocNumber = clear(docNumberField)
+	ret.Passport.HashDocNumber = clear(line2[9:10])
+	ret.Passport.Nationality = clear(line2[10:13])
+	ret.Passport.DOB = clear(dobField)
+	ret.Passport.HashDOB = clear(line2[19:20])
+	ret.Passport.Sex = clear(line2[20:21])
+	ret.Passport.ExpiredDate = clear(expiryField)
+	ret.Passport.HashExpiredDate = clear(line2[27:28])
+	ret.Passport.PersonalNumber = clear(personalNumberField)
+	ret.Passport.HashPersonalNumber = clear(line2[42:43])
+	ret.Passport.FinalHash = clear(line2[43:])
+
+	ret.Passport.ExpectedHash.DOBValid = isValidICAODate(dobField)
+	ret.Passport.ExpectedHash.ExpiredDateValid = isValidICAODate(expiryField)
+
+	ret.Passport.ExpectedHash.HashDocNumber = strconv.Itoa(computeCheckDigit(docNumberField))
+	ret.Passport.ExpectedHash.HashDOB = strconv.Itoa(computeCheckDigit(dobField))
+	ret.Passport.ExpectedHash.HashExpiredDate = strconv.Itoa(computeCheckDigit(expiryField))
+	ret.Passport.ExpectedHash.HashPersonalNumber = strconv.Itoa(computeCheckDigit(personalNumberField))
+	ret.Passport.ExpectedHash.FinalHash = strconv.Itoa(computeCheckDigit(compositeField))
+	ret.Passport.ExpectedHash.IsValid = verifyCheckDigit(docNumberField, line2[9:10]) &&
+		verifyCheckDigit(dobField, line2[19:20]) &&
+		verifyCheckDigit(expiryField, line2[27:28]) &&
+		verifyCheckDigit(personalNumberField, line2[42:43]) &&
+		verifyCheckDigit(compositeField, line2[43:44])
+
 	return ret, nil
 }
 
+// TD1MRZ parses a 3-line TD1 MRZ. The composite check digit (line 2,
+// position 29) covers doc number+check (from line 1), DOB+check,
+// expiry+check, and the nationality+optional-data-2 block (line 2,
+// positions 15-29) concatenated in that order.
 func TD1MRZ(data []string, ret MRZ) (MRZ, error) {
 	if len(data) < 3 {
 		return ret, fmt.Errorf("Invalid MRZ (Code: 3)")
@@ -332,25 +456,43 @@ func TD1MRZ(data []string, ret MRZ) (MRZ, error) {
 	ret.DocumentType = clear(data[0][:2])
 	ret.DocumentClass = TD1
 	ret.TD1.Country = clear(data[0][2:5])
-	ret.TD1.DocNumber = clear(data[0][5:14])
+	docNumberField := data[0][5:14]
+	ret.TD1.DocNumber = clear(docNumberField)
 	ret.TD1.HashDocNumber = clear(data[0][14:15])
 	ret.TD1.AdditionalInfo1 = clear(data[0][15:])
 	data[1] = strings.TrimSpace(data[1])
 	if len(data[1]) < TD1_CHAR_LEN {
 		return ret, fmt.Errorf("Invalid MRZ in line 2 (Code: 3)")
 	}
-	ret.TD1.DOB = clear(data[1][:6])
+	dobField := data[1][:6]
+	expiryField := data[1][8:14]
+	ret.TD1.DOB = clear(dobField)
 	ret.TD1.HashDOB = clear(data[1][6:7])
 	ret.TD1.Sex = clear(data[1][7:8])
-	ret.TD1.ExpiredDate = clear(data[1][8:14])
+	ret.TD1.ExpiredDate = clear(expiryField)
 	ret.TD1.HashExpiredDate = clear(data[1][14:15])
 	ret.TD1.Nationality = clear(data[1][15:18])
 	ret.TD1.AdditionalInfo2 = clear(data[1][18:29])
 	ret.TD1.FinalHash = clear(data[1][29:])
+
+	ret.TD1.ExpectedHash.DOBValid = isValidICAODate(dobField)
+	ret.TD1.ExpectedHash.ExpiredDateValid = isValidICAODate(expiryField)
+
+	compositeField := docNumberField + data[0][14:15] + dobField + data[1][6:7] + expiryField + data[1][14:15] + data[1][15:29]
+	ret.TD1.ExpectedHash.HashDocNumber = strconv.Itoa(computeCheckDigit(docNumberField))
+	ret.TD1.ExpectedHash.HashDOB = strconv.Itoa(computeCheckDigit(dobField))
+	ret.TD1.ExpectedHash.HashExpiredDate = strconv.Itoa(computeCheckDigit(expiryField))
+	ret.TD1.ExpectedHash.FinalHash = strconv.Itoa(computeCheckDigit(compositeField))
+	ret.TD1.ExpectedHash.IsValid = verifyCheckDigit(docNumberField, data[0][14:15]) &&
+		verifyCheckDigit(dobField, data[1][6:7]) &&
+		verifyCheckDigit(expiryField, data[1][14:15]) &&
+		verifyCheckDigit(compositeField, data[1][29:30])
+
 	data[2] = strings.TrimSpace(data[2])
 	if len(data[2]) < TD1_CHAR_LEN {
 		return ret, fmt.Errorf("Invalid MRZ in line 3 (Code: 3)")
 	}
+	ret.TD1.ExpectedHash.NameValid = isValidICAOName(data[2])
 	parts := strings.SplitN(data[2], "<<", 2)
 	if len(parts) > 0 {
 		ret.TD1.LastName = clear(parts[0])
@@ -361,6 +503,11 @@ func TD1MRZ(data []string, ret MRZ) (MRZ, error) {
 	ret.TD1.Name = strings.TrimSpace(ret.TD1.FirstName + " " + ret.TD1.LastName)
 	return ret, nil
 }
+
+// TD2MRZ parses a 2-line TD2 MRZ. The composite check digit (line 2,
+// position 35) covers doc number+check, DOB+check, and expiry+check,
+// concatenated in that order — nationality, sex, and optional data are
+// excluded, same shape as the TD3 composite.
 func TD2MRZ(data []string, ret MRZ) (MRZ, error) {
 	data[0] = strings.TrimSpace(data[0])
 	if len(data[0]) < TD2_CHAR_LEN {
@@ -369,21 +516,40 @@ func TD2MRZ(data []string, ret MRZ) (MRZ, error) {
 	ret.DocumentType = clear(data[0][:2])
 	ret.DocumentClass = TD2
 	ret.TD2.Country = clear(data[0][2:5])
-	ret.TD2.Name = clear(data[0][5:])
+	rawName := data[0][5:]
+	ret.TD2.ExpectedHash.NameValid = isValidICAOName(rawName)
+	ret.TD2.Name = clear(rawName)
 	data[1] = strings.TrimSpace(data[1])
 	if len(data[1]) < TD2_CHAR_LEN {
 		return ret, fmt.Errorf("Invalid MRZ in line 2 (Code: 3)")
 	}
-	ret.TD2.DocNumber = clear(data[1][:9])
+	docNumberField := data[1][:9]
+	dobField := data[1][13:19]
+	expiryField := data[1][21:27]
+	ret.TD2.DocNumber = clear(docNumberField)
 	ret.TD2.HashDocNumber = clear(data[1][9:10])
 	ret.TD2.Nationality = clear(data[1][10:13])
-	ret.TD2.DOB = clear(data[1][13:19])
+	ret.TD2.DOB = clear(dobField)
 	ret.TD2.HashDOB = clear(data[1][19:20])
 	ret.TD2.Sex = clear(data[1][20:21])
-	ret.TD2.ExpiredDate = clear(data[1][21:27])
+	ret.TD2.ExpiredDate = clear(expiryField)
 	ret.TD2.HashExpiredDate = clear(data[1][27:28])
 	ret.TD2.AdditionalInfo = clear(data[1][28:35])
 	ret.TD2.FinalHash = clear(data[1][35:])
+
+	ret.TD2.ExpectedHash.DOBValid = isValidICAODate(dobField)
+	ret.TD2.ExpectedHash.ExpiredDateValid = isValidICAODate(expiryField)
+
+	compositeField := docNumberField + data[1][9:10] + dobField + data[1][19:20] + expiryField + data[1][27:28]
+	ret.TD2.ExpectedHash.HashDocNumber = strconv.Itoa(computeCheckDigit(docNumberField))
+	ret.TD2.ExpectedHash.HashDOB = strconv.Itoa(computeCheckDigit(dobField))
+	ret.TD2.ExpectedHash.HashExpiredDate = strconv.Itoa(computeCheckDigit(expiryField))
+	ret.TD2.ExpectedHash.FinalHash = strconv.Itoa(computeCheckDigit(compositeField))
+	ret.TD2.ExpectedHash.IsValid = verifyCheckDigit(docNumberField, data[1][9:10]) &&
+		verifyCheckDigit(dobField, data[1][19:20]) &&
+		verifyCheckDigit(expiryField, data[1][27:28]) &&
+		verifyCheckDigit(compositeField, data[1][35:36])
+
 	return ret, nil
 }
 func VISAAMRZ(data []string, ret MRZ) (MRZ, error) {
@@ -459,7 +625,7 @@ func splitByN(s string, n int) []string {
 
 func ParseMRZExpiry(expiry string) (time.Time, error) {
 	var ret time.Time
-	if len(expiry) != 6 {
+	if !isValidICAODate(expiry) {
 		return ret, errors.New("invalid expiry")
 	}
 
@@ -485,7 +651,7 @@ func ParseMRZExpiry(expiry string) (time.Time, error) {
 
 func ParseMRZDOB(dob string) (time.Time, error) {
 	var ret time.Time
-	if len(dob) != 6 {
+	if !isValidICAODate(dob) {
 		return ret, errors.New("invalid dob")
 	}
 
@@ -545,16 +711,20 @@ func GenerateMRZPassport(p Passport) (string, string, error) {
 
 	docNumber := formatField(p.DocNumber, 9)
 	nationality := formatField(p.Nationality, 3)
-	sex := strings.ToUpper(string(p.Sex[0]))
+	sex := "<"
+	if len(p.Sex) > 0 {
+		sex = strings.ToUpper(string(p.Sex[0]))
+	}
 
 	// Checksums
 	docCheck := checkDigit(docNumber)
 	dobCheck := checkDigit(dob)
 	expCheck := checkDigit(exp)
 
-	optional := strings.Repeat("<", 14)
+	personalNumber := formatField(p.PersonalNumber, 14)
+	personalNumberCheck := checkDigit(personalNumber)
 
-	line2 := fmt.Sprintf("%s%d%s%s%d%s%s%d%s",
+	line2 := fmt.Sprintf("%s%d%s%s%d%s%s%d%s%d",
 		docNumber,
 		docCheck,
 		nationality,
@@ -563,11 +733,22 @@ func GenerateMRZPassport(p Passport) (string, string, error) {
 		sex,
 		exp,
 		expCheck,
-		optional,
+		personalNumber,
+		personalNumberCheck,
 	)
 
 	// Final check digit
-	finalCheck := checkDigit(line2)
+	compositeCheckField := fmt.Sprintf("%s%d%s%d%s%d%s%d",
+		docNumber,
+		docCheck,
+		dob,
+		dobCheck,
+		exp,
+		expCheck,
+		personalNumber,
+		personalNumberCheck,
+	)
+	finalCheck := checkDigit(compositeCheckField)
 	line2 = fmt.Sprintf("%s%d", line2, finalCheck)
 
 	line2 = padRight(line2, 44, '<')
