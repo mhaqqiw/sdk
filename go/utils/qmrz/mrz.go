@@ -163,10 +163,6 @@ func formatName(name string) string {
 	givenNames := strings.Join(parts[1:], "<")
 	formatted := surname + "<<" + givenNames
 	formatted = strings.ReplaceAll(formatted, " ", "<")
-	// ICAO 9303 restricts MRZ names to A-Z and the filler '<'. Any other
-	// character (accents, punctuation, digits) must be transliterated or
-	// dropped before it reaches the printed line, otherwise the field is
-	// invalid per spec even though it will still "fit" in the slot.
 	return filterMRZChars(formatted)
 }
 
@@ -200,10 +196,6 @@ func computeCheckDigit(input string) int {
 	return sum % 10
 }
 
-// verifyCheckDigit recomputes the ICAO 9303 check digit for `field` and
-// compares it against the single-character `checkChar` actually printed
-// in the MRZ. A non-digit check character (e.g. '<' used when the field
-// is unused) is treated as invalid rather than silently passing.
 func verifyCheckDigit(field string, checkChar string) bool {
 	if len(checkChar) != 1 {
 		return false
@@ -215,11 +207,6 @@ func verifyCheckDigit(field string, checkChar string) bool {
 	return computeCheckDigit(field) == actual
 }
 
-// isValidICAODate reports whether a raw MRZ YYMMDD string is a real
-// calendar date. MRZ dates carry no century, so both the 1900s and 2000s
-// interpretations are tried; the date is considered valid if either
-// resolves to a real day. This only checks calendar validity, not
-// business-logic sense (e.g. an expiry date in the past).
 func isValidICAODate(dateStr string) bool {
 	if len(dateStr) != 6 {
 		return false
@@ -251,10 +238,6 @@ func isValidICAODate(dateStr string) bool {
 	return false
 }
 
-// isValidICAOName checks that a raw (unclear()'d) MRZ name field uses only
-// the ICAO 9303 allowed character set: A-Z and the filler '<'. This must be
-// run on the raw field, before clear() strips fillers and turns them into
-// spaces, otherwise a field full of stray characters would look fine.
 func isValidICAOName(raw string) bool {
 	if raw == "" {
 		return false
@@ -374,12 +357,6 @@ func ParseMRZ(mrz string) (ret MRZ, err error) {
 	}
 }
 
-// PassportMRZ parses a TD3 (passport) MRZ and verifies every embedded
-// check digit against the ICAO 9303 algorithm (weights 7,3,1 repeating,
-// A-Z => 10-35, '<' => 0). The composite check digit (line 2, position 43)
-// covers doc number+check, DOB+check, expiry+check, and personal number+
-// check, concatenated in that order — nationality and sex are excluded,
-// per spec.
 func PassportMRZ(data []string, ret MRZ) (MRZ, error) {
 	if len(data) < 2 {
 		return ret, fmt.Errorf("Invalid MRZ (Code: 3)")
@@ -438,13 +415,13 @@ func PassportMRZ(data []string, ret MRZ) (MRZ, error) {
 		verifyCheckDigit(personalNumberField, line2[42:43]) &&
 		verifyCheckDigit(compositeField, line2[43:44])
 
+	if !ret.Passport.ExpectedHash.IsValid {
+		return ret, fmt.Errorf("Invalid MRZ Checksum")
+	}
+
 	return ret, nil
 }
 
-// TD1MRZ parses a 3-line TD1 MRZ. The composite check digit (line 2,
-// position 29) covers doc number+check (from line 1), DOB+check,
-// expiry+check, and the nationality+optional-data-2 block (line 2,
-// positions 15-29) concatenated in that order.
 func TD1MRZ(data []string, ret MRZ) (MRZ, error) {
 	if len(data) < 3 {
 		return ret, fmt.Errorf("Invalid MRZ (Code: 3)")
@@ -492,6 +469,11 @@ func TD1MRZ(data []string, ret MRZ) (MRZ, error) {
 	if len(data[2]) < TD1_CHAR_LEN {
 		return ret, fmt.Errorf("Invalid MRZ in line 3 (Code: 3)")
 	}
+
+	if !ret.TD1.ExpectedHash.IsValid {
+		return ret, fmt.Errorf("Invalid MRZ Checksum")
+	}
+
 	ret.TD1.ExpectedHash.NameValid = isValidICAOName(data[2])
 	parts := strings.SplitN(data[2], "<<", 2)
 	if len(parts) > 0 {
@@ -504,10 +486,6 @@ func TD1MRZ(data []string, ret MRZ) (MRZ, error) {
 	return ret, nil
 }
 
-// TD2MRZ parses a 2-line TD2 MRZ. The composite check digit (line 2,
-// position 35) covers doc number+check, DOB+check, and expiry+check,
-// concatenated in that order — nationality, sex, and optional data are
-// excluded, same shape as the TD3 composite.
 func TD2MRZ(data []string, ret MRZ) (MRZ, error) {
 	data[0] = strings.TrimSpace(data[0])
 	if len(data[0]) < TD2_CHAR_LEN {
@@ -550,6 +528,10 @@ func TD2MRZ(data []string, ret MRZ) (MRZ, error) {
 		verifyCheckDigit(expiryField, data[1][27:28]) &&
 		verifyCheckDigit(compositeField, data[1][35:36])
 
+	if !ret.TD2.ExpectedHash.IsValid {
+		return ret, fmt.Errorf("Invalid MRZ Checksum")
+	}
+
 	return ret, nil
 }
 func VISAAMRZ(data []string, ret MRZ) (MRZ, error) {
@@ -576,6 +558,7 @@ func VISAAMRZ(data []string, ret MRZ) (MRZ, error) {
 	ret.VISAA.AdditionalInfo = clear(data[1][28:])
 	return ret, nil
 }
+
 func VISABMRZ(data []string, ret MRZ) (MRZ, error) {
 	data[0] = strings.TrimSpace(data[0])
 	if len(data[0]) < VISA_B_CHAR_LEN {
@@ -600,6 +583,7 @@ func VISABMRZ(data []string, ret MRZ) (MRZ, error) {
 	ret.VISAB.AdditionalInfo = clear(data[1][28:])
 	return ret, nil
 }
+
 func clear(str string) string {
 	arr := strings.Split(str, "<")
 	ret := []string{}
