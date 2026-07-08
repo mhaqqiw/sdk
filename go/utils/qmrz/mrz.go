@@ -9,16 +9,19 @@ import (
 	"unicode"
 )
 
-const TD1_CHAR_LEN = 30
-const TD2_CHAR_LEN = 36
-const TD3_CHAR_LEN = 44
-const VISA_A_CHAR_LEN = 44
-const VISA_B_CHAR_LEN = 36
-const TD1 = "TD1"
-const TD2 = "TD2"
-const TD3 = "TD3"
-const VISA_A = "MRV-A"
-const VISA_B = "MRV-B"
+const (
+	TD1_CHAR_LEN    = 30
+	TD2_CHAR_LEN    = 36
+	TD3_CHAR_LEN    = 44
+	VISA_A_CHAR_LEN = 44
+	VISA_B_CHAR_LEN = 36
+
+	TD1    = "TD1"
+	TD2    = "TD2"
+	TD3    = "TD3"
+	VISA_A = "MRV-A"
+	VISA_B = "MRV-B"
+)
 
 type Passport struct {
 	Country            string `json:"country"`
@@ -144,27 +147,7 @@ type MRZ struct {
 	} `json:"visa_b"`
 }
 
-func pad(text string, length int, char rune) string {
-	for len(text) < length {
-		text += string(char)
-	}
-	if len(text) > length {
-		return text[:length]
-	}
-	return text
-}
-
-func formatName(name string) string {
-	parts := strings.Fields(strings.ToUpper(name))
-	if len(parts) == 0 {
-		return ""
-	}
-	surname := parts[0]
-	givenNames := strings.Join(parts[1:], "<")
-	formatted := surname + "<<" + givenNames
-	formatted = strings.ReplaceAll(formatted, " ", "<")
-	return filterMRZChars(formatted)
-}
+// --- Helper functions ---
 
 func formatDate(dateStr string) string {
 	parsed, err := time.Parse("2006-01-02", dateStr)
@@ -238,6 +221,8 @@ func isValidICAODate(dateStr string) bool {
 	return false
 }
 
+// isValidICAOName checks that a raw MRZ name field uses only
+// the ICAO 9303 allowed character set: A-Z and the filler '<'.
 func isValidICAOName(raw string) bool {
 	if raw == "" {
 		return false
@@ -250,65 +235,149 @@ func isValidICAOName(raw string) bool {
 	return true
 }
 
+func clear(str string) string {
+	arr := strings.Split(str, "<")
+	ret := []string{}
+	for _, i := range arr {
+		if len(i) > 0 {
+			ret = append(ret, i)
+		}
+	}
+	return strings.Join(ret, " ")
+}
+
+func splitByN(s string, n int) []string {
+	var result []string
+	for i := 0; i < len(s); i += n {
+		end := i + n
+		if end > len(s) {
+			end = len(s)
+		}
+		result = append(result, s[i:end])
+	}
+	return result
+}
+
+func padRight(s string, length int, pad rune) string {
+	for len(s) < length {
+		s += string(pad)
+	}
+	return s
+}
+
+func filterMRZChars(s string) string {
+	var result strings.Builder
+	for _, r := range s {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			result.WriteRune(r)
+		} else {
+			result.WriteRune('<')
+		}
+	}
+	return result.String()
+}
+
+func parseName(name string) (string, string) {
+	parts := strings.Fields(strings.ToUpper(name))
+	if len(parts) == 0 {
+		return "", ""
+	}
+	if len(parts) == 1 {
+		return parts[0], ""
+	}
+	return parts[0], strings.Join(parts[1:], "<")
+}
+
+func formatNameGen(s string) string {
+	s = strings.ToUpper(s)
+	s = strings.ReplaceAll(s, " ", "<")
+	return filterMRZChars(s)
+}
+
+func formatField(s string, max int) string {
+	s = strings.ToUpper(s)
+	s = filterMRZChars(s)
+	if len(s) > max {
+		return s[:max]
+	}
+	return padRight(s, max, '<')
+}
+
+// --- Generate functions ---
+
 func GenerateMRZ(mrzType string, mrz MRZ) (string, error) {
 	if mrzType != TD3 {
 		return "", errors.New("Unsupported MRZ Type")
 	}
-	data := mrz.Passport
-	line1 := "P<" + pad(strings.ToUpper(data.Country), 3, '<') + pad(formatName(data.Name), 39, '<')
-
-	passportNumber := pad(strings.ToUpper(data.DocNumber), 9, '<')
-	passportNumberCheck := computeCheckDigit(passportNumber)
-
-	dob := formatDate(data.DOB)
-	dobCheck := computeCheckDigit(dob)
-
-	expiry := formatDate(data.ExpiredDate)
-	expiryCheck := computeCheckDigit(expiry)
-
-	personalNumber := pad(data.PersonalNumber, 14, '<')
-	personalNumberCheck := computeCheckDigit(personalNumber)
-
-	sex := "<" // default placeholder if empty
-	if len(data.Sex) > 0 {
-		sex = strings.ToUpper(string(data.Sex[0]))
+	line1, line2, err := GenerateMRZPassport(mrz.Passport)
+	if err != nil {
+		return "", err
 	}
-
-	line2Body := passportNumber +
-		fmt.Sprintf("%d", passportNumberCheck) +
-		pad(strings.ToUpper(data.Nationality), 3, '<') +
-		dob +
-		fmt.Sprintf("%d", dobCheck) +
-		sex + // convert 'female' -> 'F'
-		expiry +
-		fmt.Sprintf("%d", expiryCheck) +
-		personalNumber +
-		fmt.Sprintf("%d", personalNumberCheck)
-
-	compositeCheckField := passportNumber +
-		fmt.Sprintf("%d", passportNumberCheck) +
-		dob +
-		fmt.Sprintf("%d", dobCheck) +
-		expiry +
-		fmt.Sprintf("%d", expiryCheck) +
-		personalNumber +
-		fmt.Sprintf("%d", personalNumberCheck)
-
-	compositeCheck := computeCheckDigit(compositeCheckField)
-	line2 := line2Body + fmt.Sprintf("%d", compositeCheck)
-
 	return line1 + "\n" + line2, nil
 }
+
+func GenerateMRZPassport(p Passport) (string, string, error) {
+	surname, given := parseName(p.Name)
+
+	line1 := fmt.Sprintf("P<%s%s<<%s",
+		formatField(p.Country, 3),
+		formatNameGen(surname),
+		formatNameGen(given),
+	)
+	line1 = padRight(line1, 44, '<')
+
+	dob := formatDate(p.DOB)
+	exp := formatDate(p.ExpiredDate)
+	docNumber := formatField(p.DocNumber, 9)
+	nationality := formatField(p.Nationality, 3)
+	sex := "<"
+	if len(p.Sex) > 0 {
+		sex = strings.ToUpper(string(p.Sex[0]))
+	}
+
+	docCheck := computeCheckDigit(docNumber)
+	dobCheck := computeCheckDigit(dob)
+	expCheck := computeCheckDigit(exp)
+	personalNumber := formatField(p.PersonalNumber, 14)
+	personalNumberCheck := computeCheckDigit(personalNumber)
+
+	line2 := fmt.Sprintf("%s%d%s%s%d%s%s%d%s%d",
+		docNumber,
+		docCheck,
+		nationality,
+		dob,
+		dobCheck,
+		sex,
+		exp,
+		expCheck,
+		personalNumber,
+		personalNumberCheck,
+	)
+
+	compositeCheckField := fmt.Sprintf("%s%d%s%d%s%d%s%d",
+		docNumber,
+		docCheck,
+		dob,
+		dobCheck,
+		exp,
+		expCheck,
+		personalNumber,
+		personalNumberCheck,
+	)
+	finalCheck := computeCheckDigit(compositeCheckField)
+	line2 = fmt.Sprintf("%s%d", line2, finalCheck)
+	line2 = padRight(line2, 44, '<')
+
+	return line1, line2, nil
+}
+
+// --- Parse functions ---
 
 func ParseMRZ(mrz string) (ret MRZ, err error) {
 	if len(mrz) == 0 {
 		return ret, errors.New("Empty MRZ")
 	}
 	arr := strings.Split(strings.TrimSpace(mrz), "\n")
-	if len(arr) < 1 {
-		return ret, fmt.Errorf("Invalid MRZ (Code: 1)")
-
-	}
 
 	if len(arr[0]) == 0 {
 		return ret, errors.New("Empty MRZ")
@@ -349,9 +418,8 @@ func ParseMRZ(mrz string) (ret MRZ, err error) {
 		}
 		if charLen == VISA_A_CHAR_LEN {
 			return VISAAMRZ(arr, ret)
-		} else {
-			return VISABMRZ(arr, ret)
 		}
+		return VISABMRZ(arr, ret)
 	default:
 		return ret, fmt.Errorf("MRZ not supported (Code: 2)")
 	}
@@ -378,6 +446,7 @@ func PassportMRZ(data []string, ret MRZ) (MRZ, error) {
 		ret.Passport.FirstName = clear(parts[1])
 	}
 	ret.Passport.Name = strings.TrimSpace(ret.Passport.FirstName + " " + ret.Passport.LastName)
+
 	data[1] = strings.TrimSpace(data[1])
 	if len(data[1]) < TD3_CHAR_LEN {
 		return ret, fmt.Errorf("Invalid MRZ in line 2 (Code: 3)")
@@ -437,6 +506,7 @@ func TD1MRZ(data []string, ret MRZ) (MRZ, error) {
 	ret.TD1.DocNumber = clear(docNumberField)
 	ret.TD1.HashDocNumber = clear(data[0][14:15])
 	ret.TD1.AdditionalInfo1 = clear(data[0][15:])
+
 	data[1] = strings.TrimSpace(data[1])
 	if len(data[1]) < TD1_CHAR_LEN {
 		return ret, fmt.Errorf("Invalid MRZ in line 2 (Code: 3)")
@@ -497,6 +567,7 @@ func TD2MRZ(data []string, ret MRZ) (MRZ, error) {
 	rawName := data[0][5:]
 	ret.TD2.ExpectedHash.NameValid = isValidICAOName(rawName)
 	ret.TD2.Name = clear(rawName)
+
 	data[1] = strings.TrimSpace(data[1])
 	if len(data[1]) < TD2_CHAR_LEN {
 		return ret, fmt.Errorf("Invalid MRZ in line 2 (Code: 3)")
@@ -534,6 +605,7 @@ func TD2MRZ(data []string, ret MRZ) (MRZ, error) {
 
 	return ret, nil
 }
+
 func VISAAMRZ(data []string, ret MRZ) (MRZ, error) {
 	data[0] = strings.TrimSpace(data[0])
 	if len(data[0]) < VISA_A_CHAR_LEN {
@@ -543,6 +615,7 @@ func VISAAMRZ(data []string, ret MRZ) (MRZ, error) {
 	ret.DocumentClass = VISA_A
 	ret.VISAA.Country = clear(data[0][2:5])
 	ret.VISAA.Name = clear(data[0][5:])
+
 	data[1] = strings.TrimSpace(data[1])
 	if len(data[1]) < VISA_A_CHAR_LEN {
 		return ret, fmt.Errorf("Invalid MRZ in line 2 (Code: 3)")
@@ -568,6 +641,7 @@ func VISABMRZ(data []string, ret MRZ) (MRZ, error) {
 	ret.DocumentClass = VISA_B
 	ret.VISAB.Country = clear(data[0][2:5])
 	ret.VISAB.Name = clear(data[0][5:])
+
 	data[1] = strings.TrimSpace(data[1])
 	if len(data[1]) < VISA_B_CHAR_LEN {
 		return ret, fmt.Errorf("Invalid MRZ in line 2 (Code: 3)")
@@ -584,28 +658,7 @@ func VISABMRZ(data []string, ret MRZ) (MRZ, error) {
 	return ret, nil
 }
 
-func clear(str string) string {
-	arr := strings.Split(str, "<")
-	ret := []string{}
-	for _, i := range arr {
-		if len(i) > 0 {
-			ret = append(ret, i)
-		}
-	}
-	return strings.Join(ret, " ")
-}
-
-func splitByN(s string, n int) []string {
-	var result []string
-	for i := 0; i < len(s); i += n {
-		end := i + n
-		if end > len(s) {
-			end = len(s)
-		}
-		result = append(result, s[i:end])
-	}
-	return result
-}
+// --- Date parsing functions ---
 
 func ParseMRZExpiry(expiry string) (time.Time, error) {
 	var ret time.Time
@@ -673,126 +726,4 @@ func ParseMRZDOB(dob string) (time.Time, error) {
 		return ret, err
 	}
 	return ret, nil
-}
-
-func GenerateMRZPassport(p Passport) (string, string, error) {
-	// Parse name
-	surname, given := parseName(p.Name)
-
-	// Line 1
-	line1 := fmt.Sprintf("P<%s%s<<%s",
-		formatField(p.Country, 3),
-		formatNameGen(surname),
-		formatNameGen(given),
-	)
-
-	line1 = padRight(line1, 44, '<')
-
-	// Date conversion
-	dob := formatDate(p.DOB)
-
-	exp := formatDate(p.ExpiredDate)
-
-	docNumber := formatField(p.DocNumber, 9)
-	nationality := formatField(p.Nationality, 3)
-	sex := "<"
-	if len(p.Sex) > 0 {
-		sex = strings.ToUpper(string(p.Sex[0]))
-	}
-
-	// Checksums
-	docCheck := checkDigit(docNumber)
-	dobCheck := checkDigit(dob)
-	expCheck := checkDigit(exp)
-
-	personalNumber := formatField(p.PersonalNumber, 14)
-	personalNumberCheck := checkDigit(personalNumber)
-
-	line2 := fmt.Sprintf("%s%d%s%s%d%s%s%d%s%d",
-		docNumber,
-		docCheck,
-		nationality,
-		dob,
-		dobCheck,
-		sex,
-		exp,
-		expCheck,
-		personalNumber,
-		personalNumberCheck,
-	)
-
-	// Final check digit
-	compositeCheckField := fmt.Sprintf("%s%d%s%d%s%d%s%d",
-		docNumber,
-		docCheck,
-		dob,
-		dobCheck,
-		exp,
-		expCheck,
-		personalNumber,
-		personalNumberCheck,
-	)
-	finalCheck := checkDigit(compositeCheckField)
-	line2 = fmt.Sprintf("%s%d", line2, finalCheck)
-
-	line2 = padRight(line2, 44, '<')
-
-	return line1, line2, nil
-}
-
-func parseName(name string) (string, string) {
-	parts := strings.Fields(strings.ToUpper(name))
-	if len(parts) == 0 {
-		return "", ""
-	}
-	if len(parts) == 1 {
-		return parts[0], ""
-	}
-	return parts[0], strings.Join(parts[1:], "<")
-}
-
-func formatNameGen(s string) string {
-	s = strings.ToUpper(s)
-	s = strings.ReplaceAll(s, " ", "<")
-	return filterMRZChars(s)
-}
-
-func formatField(s string, max int) string {
-	s = strings.ToUpper(s)
-	s = filterMRZChars(s)
-	if len(s) > max {
-		return s[:max]
-	}
-	return padRight(s, max, '<')
-}
-
-func padRight(s string, length int, pad rune) string {
-	for len(s) < length {
-		s += string(pad)
-	}
-	return s
-}
-
-func filterMRZChars(s string) string {
-	var result strings.Builder
-	for _, r := range s {
-		if unicode.IsLetter(r) || unicode.IsDigit(r) {
-			result.WriteRune(r)
-		} else {
-			result.WriteRune('<')
-		}
-	}
-	return result.String()
-}
-
-func checkDigit(input string) int {
-	weights := []int{7, 3, 1}
-	total := 0
-
-	for i, c := range input {
-		value := charValue(c)
-		total += value * weights[i%3]
-	}
-
-	return total % 10
 }
