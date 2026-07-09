@@ -183,6 +183,14 @@ func verifyCheckDigit(field string, checkChar string) bool {
 	if len(checkChar) != 1 {
 		return false
 	}
+	if checkChar == "<" {
+		for _, r := range field {
+			if r != '<' {
+				return false
+			}
+		}
+		return true
+	}
 	actual, err := strconv.Atoi(checkChar)
 	if err != nil {
 		return false
@@ -438,6 +446,9 @@ func PassportMRZ(data []string, ret MRZ) (MRZ, error) {
 	ret.Passport.Country = clear(data[0][2:5])
 	rawName := data[0][5:44]
 	ret.Passport.ExpectedHash.NameValid = isValidICAOName(rawName)
+	if !ret.Passport.ExpectedHash.NameValid {
+		return ret, fmt.Errorf("Invalid characters in name field")
+	}
 	parts := strings.SplitN(rawName, "<<", 2)
 	if len(parts) > 0 {
 		ret.Passport.LastName = clear(parts[0])
@@ -471,7 +482,13 @@ func PassportMRZ(data []string, ret MRZ) (MRZ, error) {
 	ret.Passport.FinalHash = clear(line2[43:])
 
 	ret.Passport.ExpectedHash.DOBValid = isValidICAODate(dobField)
+	if !ret.Passport.ExpectedHash.DOBValid {
+		return ret, fmt.Errorf("DOB not valid")
+	}
 	ret.Passport.ExpectedHash.ExpiredDateValid = isValidICAODate(expiryField)
+	if !ret.Passport.ExpectedHash.ExpiredDateValid {
+		return ret, fmt.Errorf("ExpiredDate not valid")
+	}
 
 	ret.Passport.ExpectedHash.HashDocNumber = strconv.Itoa(computeCheckDigit(docNumberField))
 	ret.Passport.ExpectedHash.HashDOB = strconv.Itoa(computeCheckDigit(dobField))
@@ -523,9 +540,15 @@ func TD1MRZ(data []string, ret MRZ) (MRZ, error) {
 	ret.TD1.FinalHash = clear(data[1][29:])
 
 	ret.TD1.ExpectedHash.DOBValid = isValidICAODate(dobField)
+	if !ret.TD1.ExpectedHash.DOBValid {
+		return ret, fmt.Errorf("DOB not valid")
+	}
 	ret.TD1.ExpectedHash.ExpiredDateValid = isValidICAODate(expiryField)
+	if !ret.TD1.ExpectedHash.ExpiredDateValid {
+		return ret, fmt.Errorf("ExpiredDate not valid")
+	}
 
-	compositeField := docNumberField + data[0][14:15] + dobField + data[1][6:7] + expiryField + data[1][14:15] + data[1][15:29]
+	compositeField := data[0][5:30] + data[1][:7] + data[1][8:15] + data[1][18:29]
 	ret.TD1.ExpectedHash.HashDocNumber = strconv.Itoa(computeCheckDigit(docNumberField))
 	ret.TD1.ExpectedHash.HashDOB = strconv.Itoa(computeCheckDigit(dobField))
 	ret.TD1.ExpectedHash.HashExpiredDate = strconv.Itoa(computeCheckDigit(expiryField))
@@ -545,6 +568,9 @@ func TD1MRZ(data []string, ret MRZ) (MRZ, error) {
 	}
 
 	ret.TD1.ExpectedHash.NameValid = isValidICAOName(data[2])
+	if !ret.TD1.ExpectedHash.NameValid {
+		return ret, fmt.Errorf("Invalid characters in name field")
+	}
 	parts := strings.SplitN(data[2], "<<", 2)
 	if len(parts) > 0 {
 		ret.TD1.LastName = clear(parts[0])
@@ -566,6 +592,9 @@ func TD2MRZ(data []string, ret MRZ) (MRZ, error) {
 	ret.TD2.Country = clear(data[0][2:5])
 	rawName := data[0][5:]
 	ret.TD2.ExpectedHash.NameValid = isValidICAOName(rawName)
+	if !ret.TD2.ExpectedHash.NameValid {
+		return ret, fmt.Errorf("Invalid characters in name field")
+	}
 	ret.TD2.Name = clear(rawName)
 
 	data[1] = strings.TrimSpace(data[1])
@@ -587,9 +616,15 @@ func TD2MRZ(data []string, ret MRZ) (MRZ, error) {
 	ret.TD2.FinalHash = clear(data[1][35:])
 
 	ret.TD2.ExpectedHash.DOBValid = isValidICAODate(dobField)
+	if !ret.TD2.ExpectedHash.DOBValid {
+		return ret, fmt.Errorf("DOB not valid")
+	}
 	ret.TD2.ExpectedHash.ExpiredDateValid = isValidICAODate(expiryField)
+	if !ret.TD2.ExpectedHash.ExpiredDateValid {
+		return ret, fmt.Errorf("ExpiredDate not valid")
+	}
 
-	compositeField := docNumberField + data[1][9:10] + dobField + data[1][19:20] + expiryField + data[1][27:28]
+	compositeField := data[1][:10] + data[1][13:20] + data[1][21:35]
 	ret.TD2.ExpectedHash.HashDocNumber = strconv.Itoa(computeCheckDigit(docNumberField))
 	ret.TD2.ExpectedHash.HashDOB = strconv.Itoa(computeCheckDigit(dobField))
 	ret.TD2.ExpectedHash.HashExpiredDate = strconv.Itoa(computeCheckDigit(expiryField))
