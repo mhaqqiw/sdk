@@ -47,4 +47,6 @@ const (
 	PassengerStatusSpoof               = "PassengerStatusSpoof"
 	PassengerStatusMask                = "PassengerStatusMask"
 	PassengerStatusNotPassedThrough    = "PassengerStatusNotPassedThrough"
+	PassengerStatusNameMissmatch       = "PassengerStatusNameMissmatch"
+	PassengerStatusInternalError       = "PassengerStatusInternalError"
 )
