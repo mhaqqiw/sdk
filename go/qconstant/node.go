@@ -49,4 +49,5 @@ const (
 	PassengerStatusNotPassedThrough    = "PassengerStatusNotPassedThrough"
 	PassengerStatusNameMissmatch       = "PassengerStatusNameMissmatch"
 	PassengerStatusInternalError       = "PassengerStatusInternalError"
+	PassengerStatusException           = "PassengerStatusException"
 )
